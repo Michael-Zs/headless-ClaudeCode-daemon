@@ -109,12 +109,14 @@ func (sm *SessionManager) CreateSession(sessionID, cwd string) (*Session, error)
 	}
 
 	// 构建启动命令
+	// 使用 -e 设置环境变量 CLAUDE_PTY_SESSION_ID 传给 hook
+
 	var tmuxArgs []string
 	if settingsPath != "" {
 		// 使用 --settings 参数启动 claude
-		tmuxArgs = []string{"new-session", "-d", "-s", tmuxSessionName, "-c", cwd, claudePath, "--settings", settingsPath}
+		tmuxArgs = []string{"new-session", "-d", "-s", tmuxSessionName, "-c", cwd, "-e", "CLAUDE_PTY_SESSION_ID=" + sessionID, "--", claudePath, "--settings", settingsPath}
 	} else {
-		tmuxArgs = []string{"new-session", "-d", "-s", tmuxSessionName, "-c", cwd, claudePath}
+		tmuxArgs = []string{"new-session", "-d", "-s", tmuxSessionName, "-c", cwd, "-e", "CLAUDE_PTY_SESSION_ID=" + sessionID, "--", claudePath}
 	}
 
 	// 使用 tmux new-session 创建会话
