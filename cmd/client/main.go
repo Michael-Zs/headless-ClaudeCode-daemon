@@ -15,11 +15,7 @@ import (
 	"claude-pty/internal"
 )
 
-const (
-	DefaultSocketPath = "/tmp/claude-pty.sock"
-)
-
-var socketPath = flag.String("socket", DefaultSocketPath, "Unix socket path")
+var socketPath = flag.String("socket", internal.GetDefaultSocketPath(), "Unix socket path")
 
 // unixClient HTTP 客户端，使用 Unix socket
 type unixClient struct {
