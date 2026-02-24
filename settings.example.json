@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "idle_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/zsm/Prj/claude-server/claude-pty/cmd/hook/set-status set-status"
+          }
+        ]
+      }
+    ]
+  }
+}

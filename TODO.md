@@ -1,0 +1,1 @@
+- get data from session file, use diff

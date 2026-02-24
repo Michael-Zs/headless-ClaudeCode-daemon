@@ -1,24 +1,25 @@
 package internal
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"sync"
 	"time"
 
-	"github.com/creack/pty"
+	"github.com/google/uuid"
 )
 
-// Session 表示一个 Claude Code 会话
+// Session 表示一个 Claude Code 会话（使用 tmux）
 type Session struct {
-	ID                string
-	CWD               string
-	Cmd               *exec.Cmd
-	PTy               *os.File
-	WaitingForInput   bool
-	CreatedAt         time.Time
-	LastActivity      time.Time
-	mu                sync.Mutex
+	ID              string
+	CWD             string
+	TmuxSessionName string
+	WaitingForInput bool
+	CreatedAt       time.Time
+	LastActivity    time.Time
+	mu              sync.Mutex
 }
 
 // SessionManager 管理所有会话
@@ -34,7 +35,46 @@ func NewSessionManager() *SessionManager {
 	}
 }
 
-// CreateSession 创建一个新的 Claude Code 会话
+// findClaudeBinary 查找 claude 命令的路径
+func findClaudeBinary() (string, error) {
+	// 检查 PATH 中是否有 claude
+	path, err := exec.LookPath("claude")
+	if err == nil {
+		return path, nil
+	}
+
+	// 检查常见安装位置
+	possiblePaths := []string{
+		"/usr/local/bin/claude",
+		"/usr/bin/claude",
+	}
+
+	for _, p := range possiblePaths {
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
+		}
+	}
+
+	return "", errors.New("claude command not found in PATH")
+}
+
+// runTmuxCommand 运行 tmux 命令
+func runTmuxCommand(args ...string) error {
+	// 使用 -L default 明确指定默认 socket
+	fullArgs := []string{"-L", "default"}
+	fullArgs = append(fullArgs, args...)
+
+	cmd := exec.Command("tmux", fullArgs...)
+	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
+	out, err := cmd.CombinedOutput()
+	fmt.Printf("[DEBUG] tmux %v: err=%v out=%s\n", fullArgs, err, string(out))
+	if err != nil {
+		return fmt.Errorf("tmux %v: %w: %s", fullArgs, err, string(out))
+	}
+	return nil
+}
+
+// CreateSession 创建一个新的 Claude Code 会话（使用 tmux）
 func (sm *SessionManager) CreateSession(sessionID, cwd string) (*Session, error) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
@@ -49,11 +89,31 @@ func (sm *SessionManager) CreateSession(sessionID, cwd string) (*Session, error)
 		return nil, err
 	}
 
-	cmd := exec.Command(claudePath)
-	cmd.Dir = cwd
+	// 确保目录存在
+	if _, err := os.Stat(cwd); err != nil {
+		return nil, err
+	}
 
-	// 创建 PTY
-	pt, err := pty.Start(cmd)
+	// 生成 tmux 会话名称
+	tmuxSessionName := "claude-" + sessionID[:8]
+
+	// 获取 settings 文件路径（可选）
+	settingsPath := os.Getenv("CLAUDE_PTY_SETTINGS")
+
+	// 构建启动命令
+	var tmuxArgs []string
+	if settingsPath != "" {
+		// 使用 --settings 参数启动 claude
+		tmuxArgs = []string{"new-session", "-d", "-s", tmuxSessionName, "-c", cwd, claudePath, "--settings", settingsPath}
+	} else {
+		tmuxArgs = []string{"new-session", "-d", "-s", tmuxSessionName, "-c", cwd, claudePath}
+	}
+
+	// 使用 tmux new-session 创建会话
+	// -d: 分离模式（后台运行）
+	// -s: 会话名称
+	// -c: 工作目录
+	err = runTmuxCommand(tmuxArgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -61,8 +121,7 @@ func (sm *SessionManager) CreateSession(sessionID, cwd string) (*Session, error)
 	session := &Session{
 		ID:              sessionID,
 		CWD:             cwd,
-		Cmd:             cmd,
-		PTy:             pt,
+		TmuxSessionName: tmuxSessionName,
 		WaitingForInput: false,
 		CreatedAt:       time.Now(),
 		LastActivity:    time.Now(),
@@ -94,12 +153,8 @@ func (sm *SessionManager) DeleteSession(sessionID string) error {
 		return ErrSessionNotFound
 	}
 
-	// 关闭 PTY 和进程
-	session.PTy.Close()
-	if session.Cmd.Process != nil {
-		session.Cmd.Process.Kill()
-		session.Cmd.Wait()
-	}
+	// 使用 tmux kill-session 删除 tmux 会话
+	runTmuxCommand("kill-session", "-t", session.TmuxSessionName)
 
 	delete(sm.sessions, sessionID)
 	return nil
@@ -162,12 +217,24 @@ func (sm *SessionManager) WriteToSession(sessionID, text string) (int, error) {
 	session.mu.Lock()
 	defer session.mu.Unlock()
 
-	n, err := session.PTy.WriteString(text)
-	if err == nil {
-		session.LastActivity = time.Now()
-		session.WaitingForInput = false
+	// 使用 tmux send-keys 发送输入
+	err := runTmuxCommand("send-keys", "-t", session.TmuxSessionName, text)
+	if err != nil {
+		return 0, err
 	}
-	return n, err
+
+	// 发送换行符（如果文本中没有换行）
+	if text[len(text)-1] != '\n' {
+		err = runTmuxCommand("send-keys", "-t", session.TmuxSessionName, "Enter")
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	session.LastActivity = time.Now()
+	session.WaitingForInput = false
+
+	return len(text), nil
 }
 
 // ReadFromSession 从会话读取输出
@@ -180,8 +247,12 @@ func (sm *SessionManager) ReadFromSession(sessionID string) (string, error) {
 		return "", ErrSessionNotFound
 	}
 
-	buf := make([]byte, 4096)
-	n, err := session.PTy.Read(buf)
+	// 使用 tmux capture-pane 获取输出
+	// -p: 输出到 stdout
+	// -t: 目标会话
+	// -S -: 从最后一行开始（获取所有历史）
+	cmd := exec.Command("tmux", "capture-pane", "-p", "-t", session.TmuxSessionName, "-S", "-")
+	output, err := cmd.Output()
 	if err != nil {
 		return "", err
 	}
@@ -190,5 +261,10 @@ func (sm *SessionManager) ReadFromSession(sessionID string) (string, error) {
 	session.LastActivity = time.Now()
 	session.mu.Unlock()
 
-	return string(buf[:n]), nil
+	return string(output), nil
+}
+
+// generateSessionID 生成会话 ID
+func generateSessionID() string {
+	return uuid.New().String()
 }

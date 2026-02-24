@@ -110,7 +110,27 @@ curl -s -X POST \
 
 ### 4. Hook 集成
 
-在 `~/.claude/settings.json` 中添加:
+#### 方法 A: 非侵入式（推荐）
+
+设置环境变量让 server 自动加载 settings：
+
+```bash
+# 1. 复制示例配置
+cp settings.example.json /path/to/your-claude-pty.json
+
+# 2. 启动 server（指定 settings 文件）
+CLAUDE_PTY_SETTINGS=/path/to/your-claude-pty.json ./bin/server
+# 或
+export CLAUDE_PTY_SETTINGS=/path/to/your-claude-pty.json
+./bin/server
+
+# 3. 创建的会话会自动使用该 settings 启动 claude
+./bin/client create /path/to/dir
+```
+
+#### 方法 B: 全局配置
+
+修改 `~/.claude/settings.json`:
 
 ```json
 {

@@ -1,39 +1,9 @@
 package internal
 
-import (
-	"errors"
-	"os"
-	"os/exec"
-	"path/filepath"
-)
-
-// findClaudeBinary 查找 claude 命令的路径
-func findClaudeBinary() (string, error) {
-	// 检查 PATH 中是否有 claude
-	path, err := exec.LookPath("claude")
-	if err == nil {
-		return path, nil
-	}
-
-	// 检查常见安装位置
-	possiblePaths := []string{
-		"/usr/local/bin/claude",
-		"/usr/bin/claude",
-		filepath.Join(os.Getenv("HOME"), ".local/bin/claude"),
-		filepath.Join(os.Getenv("HOME"), "bin/claude"),
-	}
-
-	for _, p := range possiblePaths {
-		if _, err := os.Stat(p); err == nil {
-			return p, nil
-		}
-	}
-
-	return "", errors.New("claude command not found in PATH")
-}
-
-// generateSessionID 生成会话 ID
-func generateSessionID() string {
-	// 简单使用时间戳和随机数
-	return ""
-}
+// 注意: PTY 管理逻辑已经集成到 session.go 中
+// 现在使用 tmux 来管理终端会话，而不是直接使用 pty
+// 相关的功能包括:
+// - CreateSession: 使用 tmux new-session 创建会话
+// - DeleteSession: 使用 tmux kill-session 删除会话
+// - WriteToSession: 使用 tmux send-keys 发送输入
+// - ReadFromSession: 使用 tmux capture-pane 读取输出

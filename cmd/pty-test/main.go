@@ -35,8 +35,7 @@ func main() {
 	defer pt.Close()
 
 	fmt.Println("Claude PTY Session Started")
-	fmt.Println("Type your message and press Enter to submit.")
-	fmt.Println("Press Ctrl+C to exit.")
+	fmt.Println("Type your message. Ctrl+C to exit.")
 	fmt.Println("---")
 
 	// 从 pty 复制到 stdout
