@@ -69,6 +69,17 @@ func (s *Server) Start() error {
 
 // Stop 停止 Server
 func (s *Server) Stop() error {
+	// 先清理所有 tmux 会话
+	s.logger.Println("Cleaning up all tmux sessions...")
+	sessions := s.sessionMgr.ListSessions()
+	for _, session := range sessions {
+		if err := s.sessionMgr.DeleteSession(session.ID); err != nil {
+			s.logger.Printf("warning: failed to delete session %s: %v", session.ID, err)
+		} else {
+			s.logger.Printf("Deleted tmux session: %s", session.TmuxSessionName)
+		}
+	}
+
 	if s.httpServer != nil {
 		return s.httpServer.Close()
 	}
