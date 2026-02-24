@@ -30,20 +30,22 @@ type Response struct {
 
 // SessionInfo 会话信息（用于 JSON 序列化）
 type SessionInfo struct {
-	ID              string `json:"id"`
-	CWD             string `json:"cwd"`
+	ID               string `json:"id"`
+	ClaudeSessionID string `json:"claude_session_id,omitempty"`
+	CWD              string `json:"cwd"`
 	WaitingForInput bool   `json:"waiting_for_input"`
-	CreatedAt       string `json:"created_at"`
-	LastActivity    string `json:"last_activity"`
+	CreatedAt        string `json:"created_at"`
+	LastActivity     string `json:"last_activity"`
 }
 
 // ToSessionInfo 将 Session 转换为 SessionInfo
 func (s *Session) ToSessionInfo() *SessionInfo {
 	return &SessionInfo{
-		ID:              s.ID,
-		CWD:             s.CWD,
+		ID:               s.ID,
+		ClaudeSessionID:  s.ClaudeSessionID,
+		CWD:              s.CWD,
 		WaitingForInput: s.WaitingForInput,
-		CreatedAt:       s.CreatedAt.Format("2006-01-02 15:04:05"),
-		LastActivity:    s.LastActivity.Format("2006-01-02 15:04:05"),
+		CreatedAt:        s.CreatedAt.Format("2006-01-02 15:04:05"),
+		LastActivity:     s.LastActivity.Format("2006-01-02 15:04:05"),
 	}
 }

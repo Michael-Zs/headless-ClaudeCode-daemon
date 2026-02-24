@@ -126,6 +126,8 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 		resp = s.handleSetStatus(req)
 	case "get_status":
 		resp = s.handleGetStatus(req)
+	case "get_session_id":
+		resp = s.handleGetSessionID(req)
 	default:
 		resp = Response{Success: false, Error: "unknown action: " + req.Action}
 	}
@@ -228,6 +230,20 @@ func (s *Server) handleGetStatus(req Request) Response {
 	}
 
 	return Response{Success: true, Waiting: waiting}
+}
+
+// handleGetSessionID 处理获取真实 session ID 请求
+func (s *Server) handleGetSessionID(req Request) Response {
+	if req.SessionID == "" {
+		return Response{Success: false, Error: "session_id required"}
+	}
+
+	session, err := s.sessionMgr.GetSession(req.SessionID)
+	if err != nil {
+		return Response{Success: false, Error: err.Error()}
+	}
+
+	return Response{Success: true, Session: session.ToSessionInfo()}
 }
 
 // handleList 处理列表请求

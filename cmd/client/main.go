@@ -206,7 +206,7 @@ func cmdDelete(client *unixClient, sessionID string) {
 	fmt.Println("Session deleted")
 }
 
-func cmdLog(args []string) {
+func cmdLog(client *unixClient, args []string) {
 	if len(args) < 1 {
 		fmt.Fprintln(os.Stderr, "Usage: claude-pty log <session_id> [limit]")
 		os.Exit(1)
@@ -217,6 +217,26 @@ func cmdLog(args []string) {
 	if len(args) > 1 {
 		limit = args[1]
 	}
+
+	// 先获取真实的 Claude Code session ID
+	resp, err := client.do("get_session_id", sessionID, "", "", false)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if !resp.Success {
+		fmt.Fprintf(os.Stderr, "Error: %s\n", resp.Error)
+		os.Exit(1)
+	}
+
+	realSessionID := resp.Session.ClaudeSessionID
+	if realSessionID == "" {
+		fmt.Println(os.Stderr, "Error: no real session id")
+		return
+		// realSessionID = sessionID
+	}
+	fmt.Printf("Real session ID: %s\n", realSessionID)
 
 	// 查找 jsonl 文件
 	home := os.Getenv("HOME")
@@ -229,7 +249,7 @@ func cmdLog(args []string) {
 		if !entry.IsDir() {
 			continue
 		}
-		candidate := filepath.Join(projectsDir, entry.Name(), sessionID+".jsonl")
+		candidate := filepath.Join(projectsDir, entry.Name(), realSessionID+".jsonl")
 		if _, err := os.Stat(candidate); err == nil {
 			jsonlPath = candidate
 			break
@@ -360,7 +380,7 @@ func main() {
 		}
 		cmdDelete(client, args[1])
 	case "log":
-		cmdLog(args[1:])
+		cmdLog(client, args[1:])
 	case "status":
 		if len(args) < 2 {
 			fmt.Fprintln(os.Stderr, "Usage: claude-pty status <session_id>")

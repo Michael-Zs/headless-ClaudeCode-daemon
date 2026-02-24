@@ -343,7 +343,7 @@ func findClaudeSessionIDFromTmux(tmuxSessionName string) (string, error) {
 				id = strings.Fields(id)[0]
 				if len(id) == 36 { // UUID 长度
 					// 发送 Escape 退出 status 模式
-					exec.Command("tmux", "send-keys", "-t", tmuxSessionName, "C-m").Run()
+					exec.Command("tmux", "send-keys", "-t", tmuxSessionName, "C-[").Run()
 					fmt.Printf("Debug: Found real session ID: %s\n", id)
 					return id, nil
 				}
