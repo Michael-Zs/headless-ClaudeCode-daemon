@@ -1,19 +1,27 @@
 # Claude PTY Server
 
-通过 PTY 创建和管理 Claude Code 子进程的服务器和客户端工具。
+通过 tmux 创建和管理 Claude Code 子进程的服务器和客户端工具。
 
 ## 功能特性
 
 - **Server**: 通过 Unix Socket 提供 API，管理 Claude Code 会话
-- **CLI**: 命令行客户端，支持创建、连接、发送输入等操作
+- **CLI**: 命令行客户端，支持创建、连接、发送输入、查看历史等操作
 - **Hook 集成**: 支持 Claude Code 的 Notification hook
+- **自动清理**: Server 退出时自动清理所有 tmux 会话
+- **会话追踪**: 自动获取 Claude Code 真实 session ID 用于查看历史记录
 
 ## 编译
 
 ```bash
 cd claude-pty
-go build -o bin/server ./cmd/server
-go build -o bin/client ./cmd/client
+./scripts/build.sh
+```
+
+或手动编译:
+
+```bash
+go build -o bin/claude-pty-server ./cmd/server
+go build -o bin/claude-pty-client ./cmd/client
 ```
 
 ## 使用方法
@@ -24,7 +32,7 @@ go build -o bin/client ./cmd/client
 ./bin/claude-pty-server
 ```
 
-默认 socket 路径: `/run/user/1000/claude-pty.sock` (使用 XDG_RUNTIME_DIR)
+默认 socket 路径: `/tmp/claude-pty.sock`
 
 可通过环境变量或参数指定:
 ```bash
@@ -32,11 +40,13 @@ go build -o bin/client ./cmd/client
 # 或
 CLAUDE_PTY_SOCKET=/tmp/claude-pty.sock ./bin/claude-pty-server
 
-# 终止 server
+# 终止 server（会自动清理所有 tmux 会话）
 ./bin/kill-server
 # 或
 pkill -f claude-pty-server
 ```
+
+> **注意**: Server 退出时会自动清理所有由它创建的 tmux 会话。
 
 ### 2. CLI 命令
 
@@ -61,12 +71,15 @@ pkill -f claude-pty-server
 
 # 交互式连接
 ./bin/claude-pty-client connect <session_id>
+
+# 查看对话历史（自动获取真实 session ID）
+./bin/claude-pty-client log <session_id> [limit]
 ```
 
 ### 3. 使用 curl 直接调用 API
 
 ```bash
-SOCKET="/run/user/1000/claude-pty.sock"
+SOCKET="/tmp/claude-pty.sock"
 
 # 创建会话
 curl -s -X POST \
@@ -106,6 +119,12 @@ curl -s -X POST \
   -H "Content-Type: application/json" \
   -d '{"action":"delete","session_id":"<id>"}' \
   --unix-socket "$SOCKET" http://localhost/
+
+# 获取真实 session ID
+curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"action":"get_session_id","session_id":"<id>"}' \
+  --unix-socket "$SOCKET" http://localhost/
 ```
 
 ### 4. Hook 集成
@@ -119,13 +138,13 @@ curl -s -X POST \
 cp settings.example.json /path/to/your-claude-pty.json
 
 # 2. 启动 server（指定 settings 文件）
-CLAUDE_PTY_SETTINGS=/path/to/your-claude-pty.json ./bin/server
+CLAUDE_PTY_SETTINGS=/path/to/your-claude-pty.json ./bin/claude-pty-server
 # 或
 export CLAUDE_PTY_SETTINGS=/path/to/your-claude-pty.json
-./bin/server
+./bin/claude-pty-server
 
 # 3. 创建的会话会自动使用该 settings 启动 claude
-./bin/client create /path/to/dir
+./bin/claude-pty-client create /path/to/dir
 ```
 
 #### 方法 B: 全局配置
@@ -171,19 +190,25 @@ CLAUDE_PTY_SOCKET=/tmp/claude-pty.sock ./tests/api_test.sh
 ```
 claude-pty/
 ├── cmd/
-│   ├── server/main.go      # Server 主程序
-│   ├── client/main.go      # CLI 主程序
-│   └── hook/set-status    # Hook 脚本
+│   ├── server/main.go           # Server 主程序
+│   ├── client/main.go           # CLI 主程序
+│   └── hook/
+│       └── set-status           # Hook 脚本
 ├── internal/
-│   ├── server.go          # Unix Socket Server
-│   ├── session.go         # 会话管理
-│   ├── protocol.go        # 通信协议
-│   └── pty_manager.go     # PTY 管理
+│   ├── server.go                # Unix Socket Server
+│   ├── session.go               # 会话管理 (tmux)
+│   └── protocol.go              # 通信协议
+├── scripts/
+│   ├── build.sh                 # 编译脚本
+│   ├── extract_conversation.py  # 提取对话历史
+│   └── find_session.py          # 查找会话文件
 ├── tests/
-│   └── api_test.sh       # API 测试脚本
+│   └── api_test.sh             # API 测试脚本
 ├── bin/
-│   ├── server             # 编译后的 server
-│   └── client             # 编译后的 client
+│   ├── claude-pty-server        # 编译后的 server
+│   ├── claude-pty-client        # 编译后的 client
+│   └── kill-server              # 终止脚本
+├── settings.example.json        # 示例配置文件
 ├── go.mod
 └── go.sum
 ```
@@ -191,5 +216,5 @@ claude-pty/
 ## 依赖
 
 - Go 1.18+
-- github.com/creack/pty
+- tmux
 - github.com/google/uuid
