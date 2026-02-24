@@ -68,7 +68,6 @@ func runTmuxCommand(args ...string) error {
 	cmd := exec.Command("tmux", fullArgs...)
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
 	out, err := cmd.CombinedOutput()
-	fmt.Printf("[DEBUG] tmux %v: err=%v out=%s\n", fullArgs, err, string(out))
 	if err != nil {
 		return fmt.Errorf("tmux %v: %w: %s", fullArgs, err, string(out))
 	}

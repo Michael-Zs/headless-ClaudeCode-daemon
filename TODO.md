@@ -1,1 +1,2 @@
 - get data from session file, use diff
+- after open the server, kill all unused tmux sessions
