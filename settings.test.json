@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/zsm/Prj/claude-server/claude-pty/cmd/hook/set-status set-status"
+            "command": "/bin/echo Stop >> /tmp/claude-pty-hook-test.log"
           }
         ]
       }
