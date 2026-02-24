@@ -154,13 +154,32 @@ export CLAUDE_PTY_SETTINGS=/path/to/your-claude-pty.json
 ```json
 {
   "hooks": {
-    "Notification": [
+    "PermissionRequest": [
       {
-        "matcher": "idle_prompt",
         "hooks": [
           {
             "type": "command",
-            "command": "/path/to/claude-pty/cmd/hook/set-status set-status"
+            "command": "/path/to/claude-pty/cmd/hook/set-status need_permission"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/path/to/claude-pty/cmd/hook/set-status stop"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/path/to/claude-pty/cmd/hook/set-status running"
           }
         ]
       }
@@ -169,7 +188,10 @@ export CLAUDE_PTY_SETTINGS=/path/to/your-claude-pty.json
 }
 ```
 
-Hook 脚本会设置 `waiting_for_input = true` 状态。
+Hook 脚本支持三种状态:
+- `running`: Claude 正在运行 (通过 UserPromptSubmit hook 触发)
+- `stop`: Claude 已停止
+- `need_permission`: 等待用户授权
 
 ## 测试
 

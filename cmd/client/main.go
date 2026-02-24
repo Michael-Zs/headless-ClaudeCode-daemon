@@ -24,13 +24,13 @@ type unixClient struct {
 	socketPath string
 }
 
-func (c *unixClient) do(action, sessionID, cwd, text string, waiting bool) (*internal.Response, error) {
+func (c *unixClient) do(action, sessionID, cwd, text, status string) (*internal.Response, error) {
 	reqBody := internal.Request{
 		Action:    action,
 		SessionID: sessionID,
 		CWD:       cwd,
 		Text:      text,
-		Waiting:   waiting,
+		Status:    status,
 	}
 
 	body, err := json.Marshal(reqBody)
@@ -115,7 +115,7 @@ func cmdCreate(client *unixClient, args []string) {
 		cwd = args[0]
 	}
 
-	resp, err := client.do("create", "", cwd, "", false)
+	resp, err := client.do("create", "", cwd, "", "")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -147,15 +147,15 @@ func cmdList(client *unixClient) {
 		return
 	}
 
-	fmt.Printf("%-36s %-20s %-10s\n", "ID", "CWD", "Waiting")
-	fmt.Println(strings.Repeat("-", 70))
+	fmt.Printf("%-36s %-20s %-15s\n", "ID", "CWD", "Status")
+	fmt.Println(strings.Repeat("-", 75))
 	for _, s := range resp.Sessions {
-		fmt.Printf("%-36s %-20s %-10v\n", s.ID, s.CWD, s.WaitingForInput)
+		fmt.Printf("%-36s %-20s %-15s\n", s.ID, s.CWD, s.Status)
 	}
 }
 
 func cmdGet(client *unixClient, sessionID string) {
-	resp, err := client.do("get", sessionID, "", "", false)
+	resp, err := client.do("get", sessionID, "", "", "")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -172,7 +172,7 @@ func cmdGet(client *unixClient, sessionID string) {
 }
 
 func cmdInput(client *unixClient, sessionID, text string) {
-	resp, err := client.do("input", sessionID, "", text, false)
+	resp, err := client.do("input", sessionID, "", text, "")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -187,7 +187,7 @@ func cmdInput(client *unixClient, sessionID, text string) {
 }
 
 func cmdDelete(client *unixClient, sessionID string) {
-	resp, err := client.do("delete", sessionID, "", "", false)
+	resp, err := client.do("delete", sessionID, "", "", "")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -214,7 +214,7 @@ func cmdLog(client *unixClient, args []string) {
 	}
 
 	// 先获取真实的 Claude Code session ID
-	resp, err := client.do("get_session_id", sessionID, "", "", false)
+	resp, err := client.do("get_session_id", sessionID, "", "", "")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -268,7 +268,7 @@ func cmdLog(client *unixClient, args []string) {
 }
 
 func cmdStatus(client *unixClient, sessionID string) {
-	resp, err := client.do("get_status", sessionID, "", "", false)
+	resp, err := client.do("get_status", sessionID, "", "", "")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -279,7 +279,7 @@ func cmdStatus(client *unixClient, sessionID string) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Session %s waiting for input: %v\n", sessionID, resp.Waiting)
+	fmt.Printf("Session %s status: %s\n", sessionID, resp.Status)
 }
 
 func cmdConnect(client *unixClient, sessionID string) {
@@ -290,7 +290,7 @@ func cmdConnect(client *unixClient, sessionID string) {
 	outputChan := make(chan string)
 	go func() {
 		for {
-			resp, err := client.do("get", sessionID, "", "", false)
+			resp, err := client.do("get", sessionID, "", "", "")
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				close(outputChan)
@@ -313,7 +313,7 @@ func cmdConnect(client *unixClient, sessionID string) {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		text := scanner.Text() + "\n"
-		resp, err := client.do("input", sessionID, "", text, false)
+		resp, err := client.do("input", sessionID, "", text, "")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			continue

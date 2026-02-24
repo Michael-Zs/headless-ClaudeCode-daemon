@@ -221,10 +221,12 @@ func (s *Server) handleSetStatus(req Request) Response {
 		return Response{Success: false, Error: "session_id required"}
 	}
 
-	err := s.sessionMgr.SetStatus(req.SessionID, req.Waiting)
+	err := s.sessionMgr.SetStatus(req.SessionID, req.Status)
 	if err != nil {
 		return Response{Success: false, Error: err.Error()}
 	}
+
+	fmt.Printf("Session %s status updated: status=%s\n", req.SessionID, req.Status)
 
 	return Response{Success: true}
 }
@@ -235,12 +237,12 @@ func (s *Server) handleGetStatus(req Request) Response {
 		return Response{Success: false, Error: "session_id required"}
 	}
 
-	waiting, err := s.sessionMgr.GetStatus(req.SessionID)
+	status, err := s.sessionMgr.GetStatus(req.SessionID)
 	if err != nil {
 		return Response{Success: false, Error: err.Error()}
 	}
 
-	return Response{Success: true, Waiting: waiting}
+	return Response{Success: true, Status: status}
 }
 
 // handleGetSessionID 处理获取真实 session ID 请求
@@ -292,12 +294,6 @@ func (s *Server) sendError(w http.ResponseWriter, code int, msg string) {
 
 // getSocketDir 获取 socket 文件所在的目录
 func getSocketDir() string {
-	// 使用 XDG_RUNTIME_DIR 如果存在
-	if dir := os.Getenv("XDG_RUNTIME_DIR"); dir != "" {
-		return dir
-	}
-
-	// 否则使用 /tmp
 	return "/tmp"
 }
 

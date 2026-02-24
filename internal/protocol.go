@@ -15,7 +15,7 @@ type Request struct {
 	SessionID string `json:"session_id,omitempty"`
 	CWD       string `json:"cwd,omitempty"`
 	Text      string `json:"text,omitempty"`
-	Waiting   bool   `json:"waiting,omitempty"`
+	Status    string `json:"status,omitempty"`
 }
 
 // Response 表示服务端响应
@@ -25,7 +25,7 @@ type Response struct {
 	Session  *SessionInfo `json:"session,omitempty"`
 	Sessions []*SessionInfo `json:"sessions,omitempty"`
 	Output   string      `json:"output,omitempty"`
-	Waiting  bool        `json:"waiting,omitempty"`
+	Status   string     `json:"status,omitempty"`
 }
 
 // SessionInfo 会话信息（用于 JSON 序列化）
@@ -33,7 +33,7 @@ type SessionInfo struct {
 	ID               string `json:"id"`
 	ClaudeSessionID string `json:"claude_session_id,omitempty"`
 	CWD              string `json:"cwd"`
-	WaitingForInput bool   `json:"waiting_for_input"`
+	Status           string `json:"status"`
 	CreatedAt        string `json:"created_at"`
 	LastActivity     string `json:"last_activity"`
 }
@@ -44,7 +44,7 @@ func (s *Session) ToSessionInfo() *SessionInfo {
 		ID:               s.ID,
 		ClaudeSessionID:  s.ClaudeSessionID,
 		CWD:              s.CWD,
-		WaitingForInput: s.WaitingForInput,
+		Status:           s.Status,
 		CreatedAt:        s.CreatedAt.Format("2006-01-02 15:04:05"),
 		LastActivity:     s.LastActivity.Format("2006-01-02 15:04:05"),
 	}

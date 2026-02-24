@@ -19,7 +19,7 @@ type Session struct {
 	ClaudeSessionID  string // 真实的 Claude Code session ID
 	CWD               string
 	TmuxSessionName  string
-	WaitingForInput  bool
+	Status           string // running, stopped, need_permission
 	CreatedAt        time.Time
 	LastActivity     time.Time
 	mu               sync.Mutex
@@ -160,7 +160,7 @@ func (sm *SessionManager) CreateSession(sessionID, cwd string) (*Session, error)
 		ClaudeSessionID:  realSessionID,
 		CWD:              cwd,
 		TmuxSessionName:  tmuxSessionName,
-		WaitingForInput:  false,
+		Status:           "stopped",
 		CreatedAt:        time.Now(),
 		LastActivity:     time.Now(),
 	}
@@ -211,7 +211,7 @@ func (sm *SessionManager) ListSessions() []*Session {
 }
 
 // SetStatus 设置会话状态
-func (sm *SessionManager) SetStatus(sessionID string, waiting bool) error {
+func (sm *SessionManager) SetStatus(sessionID string, status string) error {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
@@ -222,24 +222,26 @@ func (sm *SessionManager) SetStatus(sessionID string, waiting bool) error {
 
 	session.mu.Lock()
 	defer session.mu.Unlock()
-	session.WaitingForInput = waiting
+	if status != "" {
+		session.Status = status
+	}
 	session.LastActivity = time.Now()
 	return nil
 }
 
 // GetStatus 获取会话状态
-func (sm *SessionManager) GetStatus(sessionID string) (bool, error) {
+func (sm *SessionManager) GetStatus(sessionID string) (string, error) {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
 	session, ok := sm.sessions[sessionID]
 	if !ok {
-		return false, ErrSessionNotFound
+		return "", ErrSessionNotFound
 	}
 
 	session.mu.Lock()
 	defer session.mu.Unlock()
-	return session.WaitingForInput, nil
+	return session.Status, nil
 }
 
 // WriteToSession 向会话发送输入
@@ -262,15 +264,14 @@ func (sm *SessionManager) WriteToSession(sessionID, text string) (int, error) {
 	}
 
 	// 发送换行符（如果文本中没有换行）
-	if text[len(text)-1] != '\n' {
-		err = runTmuxCommand("send-keys", "-t", session.TmuxSessionName, "Enter")
-		if err != nil {
-			return 0, err
-		}
-	}
+	// if text[len(text)-1] != '\n' {
+	// 	err = runTmuxCommand("send-keys", "-t", session.TmuxSessionName, "Enter")
+	// 	if err != nil {
+	// 		return 0, err
+	// 	}
+	// }
 
 	session.LastActivity = time.Now()
-	session.WaitingForInput = false
 
 	return len(text), nil
 }
