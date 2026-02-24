@@ -99,7 +99,22 @@ func (sm *SessionManager) CreateSession(sessionID, cwd string) (*Session, error)
 	tmuxSessionName := "claude-" + sessionID[:8]
 
 	// 获取 settings 文件路径（可选）
+	// 获取 settings 文件路径
+	// 优先使用环境变量，否则使用默认的 settings.example.json
 	settingsPath := os.Getenv("CLAUDE_PTY_SETTINGS")
+	if settingsPath == "" {
+		// 尝试查找项目目录下的 settings.example.json
+		execPath, err := os.Executable()
+		if err == nil {
+			// 假设 server 在 bin/ 目录，settings.example.json 在项目根目录
+			projectDir := filepath.Dir(filepath.Dir(execPath))
+			defaultSettings := filepath.Join(projectDir, "settings.example.json")
+			if _, err := os.Stat(defaultSettings); err == nil {
+				settingsPath = defaultSettings
+			}
+		}
+	}
+
 	// 转换为绝对路径（tmux 可能在不同目录运行）
 	if settingsPath != "" && !filepath.IsAbs(settingsPath) {
 		absPath, err := filepath.Abs(settingsPath)
