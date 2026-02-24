@@ -59,7 +59,8 @@ def print_conversation(messages):
     """Print messages in a readable format."""
     for msg_type, content in messages:
         # Truncate long content
-        display = content[:300] + '...' if len(content) > 300 else content
+        # display = content[:300] + '...' if len(content) > 300 else content
+        display = content
         print(f"\n[{msg_type}]:")
         print(display)
 
