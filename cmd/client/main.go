@@ -10,8 +10,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"claude-pty/internal"
@@ -24,13 +22,19 @@ type unixClient struct {
 	socketPath string
 }
 
-func (c *unixClient) do(action, sessionID, cwd, text, status string) (*internal.Response, error) {
+func (c *unixClient) do(action, sessionID, cwd, text, status string, limit ...int) (*internal.Response, error) {
+	lim := 0
+	if len(limit) > 0 {
+		lim = limit[0]
+	}
+
 	reqBody := internal.Request{
 		Action:    action,
 		SessionID: sessionID,
 		CWD:       cwd,
 		Text:      text,
 		Status:    status,
+		Limit:     lim,
 	}
 
 	body, err := json.Marshal(reqBody)
@@ -208,13 +212,13 @@ func cmdLog(client *unixClient, args []string) {
 	}
 
 	sessionID := args[0]
-	limit := ""
+	limit := 0
 	if len(args) > 1 {
-		limit = args[1]
+		fmt.Sscanf(args[1], "%d", &limit)
 	}
 
-	// 先获取真实的 Claude Code session ID
-	resp, err := client.do("get_session_id", sessionID, "", "", "")
+	// 调用 server 的 messages API
+	resp, err := client.do("messages", sessionID, "", "", "", limit)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -225,46 +229,17 @@ func cmdLog(client *unixClient, args []string) {
 		os.Exit(1)
 	}
 
-	realSessionID := resp.Session.ClaudeSessionID
-	if realSessionID == "" {
-		fmt.Println(os.Stderr, "Error: no real session id")
-		return
-		// realSessionID = sessionID
-	}
-	fmt.Printf("Real session ID: %s\n", realSessionID)
-
-	// 查找 jsonl 文件
-	home := os.Getenv("HOME")
-	projectsDir := filepath.Join(home, ".claude", "projects")
-
-	// 搜索所有项目目录查找 session
-	var jsonlPath string
-	entries, _ := os.ReadDir(projectsDir)
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		candidate := filepath.Join(projectsDir, entry.Name(), realSessionID+".jsonl")
-		if _, err := os.Stat(candidate); err == nil {
-			jsonlPath = candidate
-			break
+	// 显示消息
+	for _, msg := range resp.Messages {
+		switch msg.Type {
+		case "user":
+			fmt.Printf("\n[User]\n%s\n\n", msg.Content)
+		case "assistant":
+			fmt.Printf("[Claude]\n%s\n\n", msg.Content)
+		case "tool":
+			fmt.Printf("[Tool]\n%s\n\n", msg.Content)
 		}
 	}
-
-	if jsonlPath == "" {
-		fmt.Fprintf(os.Stderr, "Error: session file not found for %s\n", sessionID)
-		os.Exit(1)
-	}
-
-	// 运行 Python 脚本提取对话
-	scriptPath := filepath.Join(filepath.Dir(os.Args[0]), "..", "scripts", "extract_conversation.py")
-	cmd := exec.Command("python3", scriptPath, jsonlPath)
-	if limit != "" {
-		cmd.Args = append(cmd.Args, limit)
-	}
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Run()
 }
 
 func cmdStatus(client *unixClient, sessionID string) {

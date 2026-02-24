@@ -139,6 +139,8 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 		resp = s.handleGetStatus(req)
 	case "get_session_id":
 		resp = s.handleGetSessionID(req)
+	case "messages":
+		resp = s.handleMessages(req)
 	default:
 		resp = Response{Success: false, Error: "unknown action: " + req.Action}
 	}
@@ -257,6 +259,20 @@ func (s *Server) handleGetSessionID(req Request) Response {
 	}
 
 	return Response{Success: true, Session: session.ToSessionInfo()}
+}
+
+// handleMessages 处理获取消息历史请求
+func (s *Server) handleMessages(req Request) Response {
+	if req.SessionID == "" {
+		return Response{Success: false, Error: "session_id required"}
+	}
+
+	messages, err := s.sessionMgr.GetMessages(req.SessionID, req.Limit)
+	if err != nil {
+		return Response{Success: false, Error: err.Error()}
+	}
+
+	return Response{Success: true, Messages: messages}
 }
 
 // handleList 处理列表请求

@@ -16,16 +16,24 @@ type Request struct {
 	CWD       string `json:"cwd,omitempty"`
 	Text      string `json:"text,omitempty"`
 	Status    string `json:"status,omitempty"`
+	Limit     int    `json:"limit,omitempty"`
 }
 
 // Response 表示服务端响应
 type Response struct {
-	Success  bool        `json:"success"`
-	Error    string      `json:"error,omitempty"`
-	Session  *SessionInfo `json:"session,omitempty"`
+	Success  bool          `json:"success"`
+	Error    string        `json:"error,omitempty"`
+	Session  *SessionInfo  `json:"session,omitempty"`
 	Sessions []*SessionInfo `json:"sessions,omitempty"`
-	Output   string      `json:"output,omitempty"`
-	Status   string     `json:"status,omitempty"`
+	Output   string        `json:"output,omitempty"`
+	Status   string        `json:"status,omitempty"`
+	Messages []*Message    `json:"messages,omitempty"`
+}
+
+// Message 表示对话消息
+type Message struct {
+	Type    string `json:"type"`    // user, assistant, tool
+	Content string `json:"content"`
 }
 
 // SessionInfo 会话信息（用于 JSON 序列化）

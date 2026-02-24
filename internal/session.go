@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -242,6 +244,126 @@ func (sm *SessionManager) GetStatus(sessionID string) (string, error) {
 	session.mu.Lock()
 	defer session.mu.Unlock()
 	return session.Status, nil
+}
+
+// GetMessages 获取会话消息历史
+func (sm *SessionManager) GetMessages(sessionID string, limit int) ([]*Message, error) {
+	sm.mu.RLock()
+	session, ok := sm.sessions[sessionID]
+	sm.mu.RUnlock()
+
+	if !ok {
+		return nil, ErrSessionNotFound
+	}
+
+	realSessionID := session.ClaudeSessionID
+	if realSessionID == "" {
+		realSessionID = sessionID
+	}
+
+	// 查找 jsonl 文件
+	home := os.Getenv("HOME")
+	projectsDir := filepath.Join(home, ".claude", "projects")
+
+	var jsonlPath string
+	entries, _ := os.ReadDir(projectsDir)
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		candidate := filepath.Join(projectsDir, entry.Name(), realSessionID+".jsonl")
+		if _, err := os.Stat(candidate); err == nil {
+			jsonlPath = candidate
+			break
+		}
+	}
+
+	if jsonlPath == "" {
+		return nil, fmt.Errorf("session file not found for %s", realSessionID)
+	}
+
+	// 读取 jsonl 文件
+	file, err := os.Open(jsonlPath)
+	if err != nil {
+		return nil, fmt.Errorf("open file: %w", err)
+	}
+	defer file.Close()
+
+	var messages []*Message
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Bytes()
+
+		// 先解析外层
+		var outer struct {
+			Type    string          `json:"type"`
+			Message json.RawMessage `json:"message"`
+		}
+		if err := json.Unmarshal(line, &outer); err != nil {
+			continue
+		}
+
+		if outer.Type == "user" {
+			// user 消息: content 可以是 string 或 list
+			var msg struct {
+				Content interface{} `json:"content"`
+			}
+			if err := json.Unmarshal(outer.Message, &msg); err != nil {
+				continue
+			}
+
+			switch c := msg.Content.(type) {
+			case string:
+				if c != "" {
+					messages = append(messages, &Message{Type: "user", Content: c})
+				}
+			case []interface{}:
+				for _, item := range c {
+					if itemMap, ok := item.(map[string]interface{}); ok {
+						if itemMap["type"] == "text" {
+							if text, ok := itemMap["text"].(string); ok && text != "" {
+								messages = append(messages, &Message{Type: "user", Content: text})
+							}
+						} else if itemMap["type"] == "tool_result" {
+							if content, ok := itemMap["content"].(string); ok && content != "" {
+								messages = append(messages, &Message{Type: "user", Content: content})
+							}
+						}
+					}
+				}
+			}
+		} else if outer.Type == "assistant" {
+			// assistant 消息: content 是 list
+			var msg struct {
+				Content []struct {
+					Type   string          `json:"type"`
+					Text   string          `json:"text,omitempty"`
+					Name   string          `json:"name,omitempty"`
+					Input  json.RawMessage `json:"input,omitempty"`
+				} `json:"content"`
+			}
+			if err := json.Unmarshal(outer.Message, &msg); err != nil {
+				continue
+			}
+
+			for _, item := range msg.Content {
+				if item.Type == "text" && item.Text != "" {
+					messages = append(messages, &Message{Type: "assistant", Content: item.Text})
+				} else if item.Type == "tool_use" && item.Name != "" {
+					inputBytes, _ := json.Marshal(item.Input)
+					content := fmt.Sprintf("%s: %s", item.Name, string(inputBytes))
+					messages = append(messages, &Message{Type: "tool", Content: content})
+				}
+			}
+		}
+	}
+
+	// 限制返回数量
+	if limit > 0 && len(messages) > limit {
+		messages = messages[len(messages)-limit:]
+	}
+
+	return messages, nil
 }
 
 // WriteToSession 向会话发送输入
