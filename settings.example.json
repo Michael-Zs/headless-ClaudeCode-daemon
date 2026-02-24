@@ -6,7 +6,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/zsm/Prj/claude-server/claude-pty/cmd/hook/set-status set-status"
+            "command": "/bin/echo idle_prompt triggered >> /tmp/claude-pty-hook-test.log"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/bin/echo Stop triggered >> /tmp/claude-pty-hook-test.log"
           }
         ]
       }
