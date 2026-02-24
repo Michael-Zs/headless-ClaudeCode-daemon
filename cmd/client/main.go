@@ -10,6 +10,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"claude-pty/internal"
@@ -204,6 +206,52 @@ func cmdDelete(client *unixClient, sessionID string) {
 	fmt.Println("Session deleted")
 }
 
+func cmdLog(args []string) {
+	if len(args) < 1 {
+		fmt.Fprintln(os.Stderr, "Usage: claude-pty log <session_id> [limit]")
+		os.Exit(1)
+	}
+
+	sessionID := args[0]
+	limit := ""
+	if len(args) > 1 {
+		limit = args[1]
+	}
+
+	// 查找 jsonl 文件
+	home := os.Getenv("HOME")
+	projectsDir := filepath.Join(home, ".claude", "projects")
+
+	// 搜索所有项目目录查找 session
+	var jsonlPath string
+	entries, _ := os.ReadDir(projectsDir)
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		candidate := filepath.Join(projectsDir, entry.Name(), sessionID+".jsonl")
+		if _, err := os.Stat(candidate); err == nil {
+			jsonlPath = candidate
+			break
+		}
+	}
+
+	if jsonlPath == "" {
+		fmt.Fprintf(os.Stderr, "Error: session file not found for %s\n", sessionID)
+		os.Exit(1)
+	}
+
+	// 运行 Python 脚本提取对话
+	scriptPath := filepath.Join(filepath.Dir(os.Args[0]), "..", "scripts", "extract_conversation.py")
+	cmd := exec.Command("python3", scriptPath, jsonlPath)
+	if limit != "" {
+		cmd.Args = append(cmd.Args, limit)
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Run()
+}
+
 func cmdStatus(client *unixClient, sessionID string) {
 	resp, err := client.do("get_status", sessionID, "", "", false)
 	if err != nil {
@@ -311,6 +359,8 @@ func main() {
 			os.Exit(1)
 		}
 		cmdDelete(client, args[1])
+	case "log":
+		cmdLog(args[1:])
 	case "status":
 		if len(args) < 2 {
 			fmt.Fprintln(os.Stderr, "Usage: claude-pty status <session_id>")

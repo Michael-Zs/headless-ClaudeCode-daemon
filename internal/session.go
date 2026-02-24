@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,13 +15,14 @@ import (
 
 // Session 表示一个 Claude Code 会话（使用 tmux）
 type Session struct {
-	ID              string
-	CWD             string
-	TmuxSessionName string
-	WaitingForInput bool
-	CreatedAt       time.Time
-	LastActivity    time.Time
-	mu              sync.Mutex
+	ID                string
+	ClaudeSessionID  string // 真实的 Claude Code session ID
+	CWD               string
+	TmuxSessionName  string
+	WaitingForInput  bool
+	CreatedAt        time.Time
+	LastActivity     time.Time
+	mu               sync.Mutex
 }
 
 // SessionManager 管理所有会话
@@ -142,13 +144,25 @@ func (sm *SessionManager) CreateSession(sessionID, cwd string) (*Session, error)
 		return nil, err
 	}
 
+	// 等待一下让 Claude Code 启动
+	time.Sleep(3 * time.Second)
+
+	// 查找 Claude Code 的真实 session ID
+	realSessionID, err := findClaudeSessionIDFromTmux(tmuxSessionName)
+	if err != nil {
+		// 如果找不到，使用原来的 UUID
+		fmt.Printf("Warning: could not find real session ID for tmux session %s: %v\n", tmuxSessionName, err)
+		realSessionID = sessionID
+	}
+
 	session := &Session{
-		ID:              sessionID,
-		CWD:             cwd,
-		TmuxSessionName: tmuxSessionName,
-		WaitingForInput: false,
-		CreatedAt:       time.Now(),
-		LastActivity:    time.Now(),
+		ID:               sessionID,
+		ClaudeSessionID:  realSessionID,
+		CWD:              cwd,
+		TmuxSessionName:  tmuxSessionName,
+		WaitingForInput:  false,
+		CreatedAt:        time.Now(),
+		LastActivity:     time.Now(),
 	}
 
 	sm.sessions[sessionID] = session
@@ -291,4 +305,54 @@ func (sm *SessionManager) ReadFromSession(sessionID string) (string, error) {
 // generateSessionID 生成会话 ID
 func generateSessionID() string {
 	return uuid.New().String()
+}
+
+// findClaudeSessionIDFromTmux 从 tmux 会话中获取 Claude Code 的真实 session ID
+func findClaudeSessionIDFromTmux(tmuxSessionName string) (string, error) {
+	// 发送 /status 命令
+	cmd := exec.Command("tmux", "send-keys", "-t", tmuxSessionName, "/status", "Enter")
+	if err := cmd.Run(); err != nil {
+		return "", err
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	exec.Command("tmux", "send-keys", "-t", tmuxSessionName, "Enter").Run()
+
+	// 等待输出
+	time.Sleep(800 * time.Millisecond)
+
+	// 捕获输出
+	cmd = exec.Command("tmux", "capture-pane", "-p", "-t", tmuxSessionName)
+	output, err := cmd.Output()
+
+	fmt.Printf("Debug: tmux capture-pane output:\n%s\n", string(output))
+
+	if err != nil {
+		return "", err
+	}
+
+	// 查找 "Session ID: xxx" 模式
+	outputStr := string(output)
+	for _, line := range strings.Split(outputStr, "\n") {
+		if strings.Contains(line, "Session ID:") {
+			// 提取 session ID
+			parts := strings.Split(line, "Session ID:")
+			if len(parts) > 1 {
+				id := strings.TrimSpace(parts[1])
+				// 去除可能的其他字符
+				id = strings.Fields(id)[0]
+				if len(id) == 36 { // UUID 长度
+					// 发送 Escape 退出 status 模式
+					exec.Command("tmux", "send-keys", "-t", tmuxSessionName, "C-m").Run()
+					fmt.Printf("Debug: Found real session ID: %s\n", id)
+					return id, nil
+				}
+			}
+		}
+	}
+
+	// 如果没找到，尝试发送 Enter 退出
+	exec.Command("tmux", "send-keys", "-t", tmuxSessionName, "Enter").Run()
+
+	return "", fmt.Errorf("session ID not found in status output")
 }
