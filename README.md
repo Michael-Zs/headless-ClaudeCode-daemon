@@ -21,41 +21,46 @@ go build -o bin/client ./cmd/client
 ### 1. 启动 Server
 
 ```bash
-./bin/server
+./bin/claude-pty-server
 ```
 
 默认 socket 路径: `/run/user/1000/claude-pty.sock` (使用 XDG_RUNTIME_DIR)
 
 可通过环境变量或参数指定:
 ```bash
-./bin/server -socket /tmp/claude-pty.sock
+./bin/claude-pty-server -socket /tmp/claude-pty.sock
 # 或
-CLAUDE_PTY_SOCKET=/tmp/claude-pty.sock ./bin/server
+CLAUDE_PTY_SOCKET=/tmp/claude-pty.sock ./bin/claude-pty-server
+
+# 终止 server
+./bin/kill-server
+# 或
+pkill -f claude-pty-server
 ```
 
 ### 2. CLI 命令
 
 ```bash
 # 创建新会话
-./bin/client create [工作目录]
+./bin/claude-pty-client create [工作目录]
 
 # 列出所有会话
-./bin/client list
+./bin/claude-pty-client list
 
 # 查看会话状态
-./bin/client status <session_id>
+./bin/claude-pty-client status <session_id>
 
 # 发送输入
-./bin/client input <session_id> "文本"
+./bin/claude-pty-client input <session_id> "文本"
 
 # 获取输出
-./bin/client get <session_id>
+./bin/claude-pty-client get <session_id>
 
 # 删除会话
-./bin/client delete <session_id>
+./bin/claude-pty-client delete <session_id>
 
 # 交互式连接
-./bin/client connect <session_id>
+./bin/claude-pty-client connect <session_id>
 ```
 
 ### 3. 使用 curl 直接调用 API
