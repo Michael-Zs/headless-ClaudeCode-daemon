@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# Claude PTY Hook 脚本
+# 用法: claude-pty-hook set-status [session_id]
+# 从 stdin 读取 session_id
+
+SOCKET_PATH="${CLAUDE_PTY_SOCKET:-/tmp/claude-pty.sock}"
+
+ACTION="$1"
+
+if [ -z "$ACTION" ]; then
+    echo "Usage: $0 <action> [session_id]"
+    exit 1
+fi
+
+# 从 stdin 读取 session_id（如果未作为参数提供）
+SESSION_ID=""
+if [ -n "$2" ]; then
+    SESSION_ID="$2"
+else
+    # 尝试从文件读取 session_id
+    if [ -f "$HOME/.claude-pty-session" ]; then
+        SESSION_ID=$(cat "$HOME/.claude-pty-session")
+    fi
+fi
+
+if [ -z "$SESSION_ID" ]; then
+    echo "Error: session_id not provided"
+    exit 1
+fi
+
+case "$ACTION" in
+    set-status)
+        # 设置等待状态为 true
+        curl -s -X POST \
+            -d "{\"action\":\"set_status\",\"session_id\":\"$SESSION_ID\",\"waiting\":true}" \
+            --unix-socket "$SOCKET_PATH" \
+            http://localhost/ > /dev/null
+        ;;
+    unset-status)
+        # 设置等待状态为 false
+        curl -s -X POST \
+            -d "{\"action\":\"set_status\",\"session_id\":\"$SESSION_ID\",\"waiting\":false}" \
+            --unix-socket "$SOCKET_PATH" \
+            http://localhost/ > /dev/null
+        ;;
+    *)
+        echo "Unknown action: $ACTION"
+        exit 1
+        ;;
+esac
