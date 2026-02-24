@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -99,6 +100,13 @@ func (sm *SessionManager) CreateSession(sessionID, cwd string) (*Session, error)
 
 	// 获取 settings 文件路径（可选）
 	settingsPath := os.Getenv("CLAUDE_PTY_SETTINGS")
+	// 转换为绝对路径（tmux 可能在不同目录运行）
+	if settingsPath != "" && !filepath.IsAbs(settingsPath) {
+		absPath, err := filepath.Abs(settingsPath)
+		if err == nil {
+			settingsPath = absPath
+		}
+	}
 
 	// 构建启动命令
 	var tmuxArgs []string
