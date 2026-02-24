@@ -155,24 +155,19 @@ func cmdList(client *unixClient) {
 }
 
 func cmdGet(client *unixClient, sessionID string) {
-	for {
-		resp, err := client.do("get", sessionID, "", "", false)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
+	resp, err := client.do("get", sessionID, "", "", false)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 
-		if !resp.Success {
-			fmt.Fprintf(os.Stderr, "Error: %s\n", resp.Error)
-			os.Exit(1)
-		}
+	if !resp.Success {
+		fmt.Fprintf(os.Stderr, "Error: %s\n", resp.Error)
+		os.Exit(1)
+	}
 
-		if resp.Output != "" {
-			fmt.Print(resp.Output)
-		}
-
-		// 简单的轮询间隔
-		// 在实际使用中可能需要更好的机制
+	if resp.Output != "" {
+		fmt.Print(resp.Output)
 	}
 }
 
