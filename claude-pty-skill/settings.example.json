@@ -1,0 +1,34 @@
+{
+  "hooks": {
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/zsm/Prj/claude-server/claude-pty/cmd/hook/set-status need_permission"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/zsm/Prj/claude-server/claude-pty/cmd/hook/set-status stopped"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/zsm/Prj/claude-server/claude-pty/cmd/hook/set-status running"
+          }
+        ]
+      }
+    ]
+  }
+}
