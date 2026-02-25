@@ -325,11 +325,8 @@ func (sm *SessionManager) GetMessages(sessionID string, limit int) ([]*Message, 
 							if text, ok := itemMap["text"].(string); ok && text != "" {
 								messages = append(messages, &Message{Type: "user", Content: text})
 							}
-						} else if itemMap["type"] == "tool_result" {
-							if content, ok := itemMap["content"].(string); ok && content != "" {
-								messages = append(messages, &Message{Type: "user", Content: content})
-							}
 						}
+						// tool_result 是工具调用返回值，不是真实用户消息，跳过
 					}
 				}
 			}
