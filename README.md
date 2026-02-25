@@ -169,7 +169,7 @@ export CLAUDE_PTY_SETTINGS=/path/to/your-claude-pty.json
         "hooks": [
           {
             "type": "command",
-            "command": "/path/to/claude-pty/cmd/hook/set-status stop"
+            "command": "/path/to/claude-pty/cmd/hook/set-status stopped"
           }
         ]
       }
@@ -190,7 +190,7 @@ export CLAUDE_PTY_SETTINGS=/path/to/your-claude-pty.json
 
 Hook 脚本支持三种状态:
 - `running`: Claude 正在运行 (通过 UserPromptSubmit hook 触发)
-- `stop`: Claude 已停止
+- `stopped`: Claude 已停止
 - `need_permission`: 等待用户授权
 
 ## 测试

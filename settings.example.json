@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/zsm/Prj/claude-server/claude-pty/cmd/hook/set-status stop"
+            "command": "/home/zsm/Prj/claude-server/claude-pty/cmd/hook/set-status stopped"
           }
         ]
       }

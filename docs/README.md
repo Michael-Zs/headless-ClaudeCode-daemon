@@ -204,7 +204,7 @@ go build -o bin/claude-pty-client ./cmd/client
         "hooks": [
           {
             "type": "command",
-            "command": "/path/to/claude-pty/cmd/hook/set-status stop"
+            "command": "/path/to/claude-pty/cmd/hook/set-status stopped"
           }
         ]
       }

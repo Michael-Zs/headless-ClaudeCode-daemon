@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Claude PTY Hook 脚本
-# 用法: claude-pty-hook <running|stop|need_permission>
+# 用法: claude-pty-hook <running|stopped|need_permission>
 # 从环境变量 CLAUDE_PTY_SESSION_ID 获取 session_id
 
 SOCKET_PATH="${CLAUDE_PTY_SOCKET:-/tmp/claude-pty.sock}"
@@ -30,7 +30,7 @@ running)
     http://localhost/ >>/tmp/claude-pty-hook-test.log 2>&1
   echo "running: $SESSION_ID: $SOCKET_PATH" >>/tmp/claude-pty-hook-test.log
   ;;
-stop)
+stopped)
   # Claude 已停止
   curl -s -X POST \
     -d "{\"action\":\"set_status\",\"session_id\":\"$SESSION_ID\",\"status\":\"stopped\"}" \
