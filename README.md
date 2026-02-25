@@ -66,6 +66,15 @@ pkill -f claude-pty-server
 # 获取输出
 ./bin/claude-pty-client get <session_id>
 
+# 获取最后 N 行
+./bin/claude-pty-client get <session_id> 100
+
+# 获取最后 N 个用户回合（以 ❯ 开头的块）
+./bin/claude-pty-client get <session_id> ">1"
+
+# 获取最后 N 个块（以 ❯ 或 ● 开头的块）
+./bin/claude-pty-client get <session_id> ".1"
+
 # 删除会话
 ./bin/claude-pty-client delete <session_id>
 
@@ -108,10 +117,28 @@ curl -s -X POST \
   -d '{"action":"input","session_id":"<id>","text":"hello"}' \
   --unix-socket "$SOCKET" http://localhost/
 
-# 获取输出
+# 获取输出（默认全部）
 curl -s -X POST \
   -H "Content-Type: application/json" \
   -d '{"action":"get","session_id":"<id>"}' \
+  --unix-socket "$SOCKET" http://localhost/
+
+# 获取最后 N 行
+curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"action":"get","session_id":"<id>","limit_str":"100"}' \
+  --unix-socket "$SOCKET" http://localhost/
+
+# 获取最后 N 个用户回合（以 ❯ 开头）
+curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"action":"get","session_id":"<id>","limit_str":">1"}' \
+  --unix-socket "$SOCKET" http://localhost/
+
+# 获取最后 N 个块（以 ❯ 或 ● 开头）
+curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"action":"get","session_id":"<id>","limit_str":".1"}' \
   --unix-socket "$SOCKET" http://localhost/
 
 # 删除会话
@@ -230,10 +257,41 @@ claude-pty/
 │   ├── claude-pty-server        # 编译后的 server
 │   ├── claude-pty-client        # 编译后的 client
 │   └── kill-server              # 终止脚本
+├── claude-pty-skill/            # Claude Code 技能模块
+│   ├── SKILL.md                 # 技能说明文档
+│   ├── settings.example.json    # 示例配置
+│   ├── bin/                     # 技能专用二进制
+│   │   ├── server
+│   │   └── client
+│   └── test.sh                  # 测试脚本
 ├── settings.example.json        # 示例配置文件
 ├── go.mod
 └── go.sum
 ```
+
+## Claude Code 技能 (claude-pty-skill)
+
+项目包含一个独立的技能模块，可用于 Claude Code 会话管理。
+
+### 安装与使用
+
+1. **编译二进制文件**（如尚未编译）:
+```bash
+cd claude-pty-skill
+mkdir -p bin
+go build -o bin/server ../cmd/server
+go build -o bin/client ../cmd/client
+```
+
+2. **使用方式**: 参照 [claude-pty-skill/SKILL.md](claude-pty-skill/SKILL.md)
+
+### 功能
+
+- 创建和管理 Claude Code 会话
+- 发送输入和读取输出
+- 监控会话状态（running/stopped/need_permission）
+- 处理权限请求
+- 自动清理会话
 
 ## 依赖
 
