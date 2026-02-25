@@ -5,9 +5,9 @@ description: Use when you need to run Claude Code in a managed PTY session — c
 
 # Claude PTY Session Management
 
-This skill teaches you how to operate Claude Code sessions via the `claude-pty` server using the `client` binary located in the same folder as this skill file.
+This skill teaches you how to operate Claude Code sessions via the `claude-pty` server using the binaries located in the `bin/` folder inside this skill folder.
 
-**Binary path:** `./client` (relative to this skill folder)
+**Binaries:** `./bin/client` and `./bin/server` (relative to this skill folder)
 
 ---
 
@@ -23,20 +23,39 @@ The `client` tool talks to a running `claude-pty-server` over a Unix socket. It 
 
 ---
 
+## Step 0 — Make sure the server is running
+
+Before using any command, the `claude-pty-server` must be running. If you see this error from any `client` call:
+
+```
+Error: do request: Post "http://localhost/": dial unix /tmp/claude-pty.sock: connect: no such file or directory
+```
+
+The server is not running. Start it in the background:
+
+```bash
+./bin/server &
+sleep 1
+```
+
+Then retry your command. You only need to do this once — the server stays running until the machine reboots or it is explicitly killed.
+
+---
+
 ## Step 1 — Orient yourself with `create` and `list`
 
 Before doing anything, get context about what sessions exist.
 
 ```bash
 # List all existing sessions
-./client list
+./bin/client list
 ```
 
 Output columns: `ID`, `CWD` (working directory), `Status`.
 
 ```bash
 # Create a new session (optionally pass a working directory)
-./client create /path/to/workdir
+./bin/client create /path/to/workdir
 ```
 
 This prints the new session ID. Save it — you will use it for every subsequent command.
@@ -46,7 +65,7 @@ This prints the new session ID. Save it — you will use it for every subsequent
 ## Step 2 — Check session info with `info`
 
 ```bash
-./client info <session_id>
+./bin/client info <session_id>
 ```
 
 This shows the session's status, working directory, creation time, and last activity. The key field is **Status**, which tells you what Claude is doing right now.
@@ -65,10 +84,10 @@ This shows the session's status, working directory, creation time, and last acti
 
 ```bash
 # Get full terminal output
-./client get <session_id>
+./bin/client get <session_id>
 
 # Get only the last N lines (useful to avoid huge output)
-./client get <session_id> 100
+./bin/client get <session_id> 100
 ```
 
 Always use a limit when you just want recent context. Use `get` to:
@@ -85,10 +104,10 @@ Send the prompt text first, then send `Enter` as a separate call to submit it.
 
 ```bash
 # Send the prompt text
-./client input <session_id> "your prompt here"
+./bin/client input <session_id> "your prompt here"
 
 # Submit it (press Enter)
-./client input <session_id> "Enter"
+./bin/client input <session_id> "Enter"
 ```
 
 **Important:** Always send these as two separate calls. The first call types the text; the second call submits it.
@@ -103,13 +122,13 @@ Navigate and confirm using individual key presses — each is a separate `input`
 
 ```bash
 # Move selection up
-./client input <session_id> "Up"
+./bin/client input <session_id> "Up"
 
 # Move selection down
-./client input <session_id> "Down"
+./bin/client input <session_id> "Down"
 
 # Confirm the current selection
-./client input <session_id> "Enter"
+./bin/client input <session_id> "Enter"
 ```
 
 Typical dialog options are "Yes" / "No" / "Always allow". Use `Up`/`Down` to highlight your choice, then `Enter` to confirm.
@@ -123,7 +142,7 @@ After confirming, Claude's status should return to `running`, then eventually `s
 When status is `running`, poll periodically:
 
 ```bash
-./client info <session_id>
+./bin/client info <session_id>
 ```
 
 Do not send more input while Claude is running. Wait until status becomes `stopped` before proceeding.
@@ -135,7 +154,7 @@ Do not send more input while Claude is running. Wait until status becomes `stopp
 When the task is fully complete, delete the session to free resources:
 
 ```bash
-./client delete <session_id>
+./bin/client delete <session_id>
 ```
 
 ---
@@ -144,7 +163,15 @@ When the task is fully complete, delete the session to free resources:
 
 ```bash
 SKILL_DIR="$(dirname "$0")"   # or hardcode the path to the skill folder
-CLIENT="$SKILL_DIR/client"
+CLIENT="$SKILL_DIR/bin/client"
+SERVER="$SKILL_DIR/bin/server"
+
+# 0. Ensure server is running
+if ! $CLIENT list >/dev/null 2>&1; then
+  echo "Server not running, starting..."
+  $SERVER &
+  sleep 1
+fi
 
 # 1. Create session
 SESSION=$($CLIENT create /my/project | grep "Session created:" | awk '{print $3}')
@@ -187,9 +214,9 @@ $CLIENT delete "$SESSION"
 
 | Command | Usage | Purpose |
 |---|---|---|
-| `list` | `./client list` | See all sessions and their statuses |
-| `create` | `./client create [cwd]` | Start a new Claude session |
-| `info` | `./client info <id>` | Check status and metadata |
-| `get` | `./client get <id> [limit]` | Read terminal output |
-| `input` | `./client input <id> <text>` | Send a keystroke or text |
-| `delete` | `./client delete <id>` | Remove session when finished |
+| `list` | `./bin/client list` | See all sessions and their statuses |
+| `create` | `./bin/client create [cwd]` | Start a new Claude session |
+| `info` | `./bin/client info <id>` | Check status and metadata |
+| `get` | `./bin/client get <id> [limit]` | Read terminal output |
+| `input` | `./bin/client input <id> <text>` | Send a keystroke or text |
+| `delete` | `./bin/client delete <id>` | Remove session when finished |
