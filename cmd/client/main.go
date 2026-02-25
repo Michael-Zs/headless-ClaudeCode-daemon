@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"flag"
@@ -10,10 +9,13 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"claude-pty/internal"
+	"golang.org/x/term"
 )
 
 var socketPath = flag.String("socket", internal.GetDefaultSocketPath(), "Unix socket path")
@@ -284,15 +286,26 @@ func cmdStatus(client *unixClient, sessionID string) {
 
 func cmdConnect(client *unixClient, sessionID string) {
 	fmt.Printf("Connecting to session %s...\n", sessionID)
-	fmt.Println("Press Ctrl+C to disconnect")
+	fmt.Println("Press Ctrl+Q to disconnect")
 
 	done := make(chan bool)
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// 读取输出的 goroutine
+	// 保存终端状态
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error setting raw mode: %v\n", err)
+		return
+	}
+	defer term.Restore(int(os.Stdin.Fd()), oldState)
+
+	// 读取输出的 goroutine（只打印新增内容）
 	go func() {
-		ticker := time.NewTicker(100 * time.Millisecond)
+		ticker := time.NewTicker(50 * time.Millisecond)
 		defer ticker.Stop()
 
+		lastOutput := ""
 		for {
 			select {
 			case <-done:
@@ -302,24 +315,54 @@ func cmdConnect(client *unixClient, sessionID string) {
 				if err != nil {
 					return
 				}
-				if resp.Success && resp.Output != "" {
-					fmt.Print(resp.Output)
+				if !resp.Success || resp.Output == "" {
+					continue
 				}
+				// 只打印新增的部分
+				if resp.Output == lastOutput {
+					continue
+				}
+				newContent := resp.Output
+				if strings.HasPrefix(resp.Output, lastOutput) {
+					newContent = resp.Output[len(lastOutput):]
+				} else {
+					// 内容发生了变化（如清屏），全量输出
+					fmt.Print("\r\033[2J\033[H") // 清屏
+				}
+				// raw mode 下 \n 需要转为 \r\n
+				newContent = strings.ReplaceAll(newContent, "\n", "\r\n")
+				fmt.Print(newContent)
+				lastOutput = resp.Output
 			}
 		}
 	}()
 
-	// 读取用户输入并发送
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		text := scanner.Text() + "\n"
-		_, err := client.do("input", sessionID, "", text, "")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	// 读取用户输入并发送（逐字符）
+	buf := make([]byte, 1)
+	for {
+		select {
+		case <-sigChan:
+			fmt.Print("\r\nDisconnected\r\n")
+			close(done)
+			return
+		default:
+			n, err := os.Stdin.Read(buf)
+			if err != nil || n == 0 {
+				close(done)
+				return
+			}
+			// Ctrl+Q (0x11) 退出
+			if buf[0] == 0x11 {
+				fmt.Print("\r\nDisconnected\r\n")
+				close(done)
+				return
+			}
+			_, err = client.do("input", sessionID, "", string(buf[:n]), "")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "\r\nError: %v\r\n", err)
+			}
 		}
 	}
-
-	close(done)
 }
 
 func main() {
