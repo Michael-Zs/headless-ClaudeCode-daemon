@@ -17,6 +17,7 @@ type Request struct {
 	Text      string `json:"text,omitempty"`
 	Status    string `json:"status,omitempty"`
 	Limit     int    `json:"limit,omitempty"`
+	LimitStr  string `json:"limit_str,omitempty"`
 }
 
 // Response 表示服务端响应

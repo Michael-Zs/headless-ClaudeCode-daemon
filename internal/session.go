@@ -396,8 +396,14 @@ func (sm *SessionManager) WriteToSession(sessionID, text string) (int, error) {
 	return len(text), nil
 }
 
-// ReadFromSession 从会话读取输出，limit 为最多返回行数（0 表示全部）
-func (sm *SessionManager) ReadFromSession(sessionID string, limit int) (string, error) {
+// ReadFromSession 从会话读取输出。
+// limitStr 格式：
+//
+//	"N"   - 最后 N 行
+//	">N"  - 最后 N 个用户回合（以 ❯ 开头的块及其后续内容）
+//	".N"  - 最后 N 个块（以 ❯ 或 ● 开头的块）
+//	""    - 全部
+func (sm *SessionManager) ReadFromSession(sessionID string, limitStr string) (string, error) {
 	sm.mu.RLock()
 	session, ok := sm.sessions[sessionID]
 	sm.mu.RUnlock()
@@ -406,10 +412,6 @@ func (sm *SessionManager) ReadFromSession(sessionID string, limit int) (string, 
 		return "", ErrSessionNotFound
 	}
 
-	// 使用 tmux capture-pane 获取输出
-	// -p: 输出到 stdout
-	// -t: 目标会话
-	// -S -: 从最开始获取全部历史
 	cmd := tmuxCmd("capture-pane", "-p", "-t", session.TmuxSessionName, "-S", "-")
 	output, err := cmd.Output()
 	if err != nil {
@@ -421,15 +423,72 @@ func (sm *SessionManager) ReadFromSession(sessionID string, limit int) (string, 
 	session.mu.Unlock()
 
 	result := strings.TrimRight(string(output), "\n")
-	if limit > 0 {
-		lines := strings.Split(result, "\n")
-		if len(lines) > limit {
-			lines = lines[len(lines)-limit:]
+
+	if limitStr == "" {
+		return result, nil
+	}
+
+	switch {
+	case strings.HasPrefix(limitStr, ">"):
+		n := 0
+		fmt.Sscanf(limitStr[1:], "%d", &n)
+		if n > 0 {
+			// 加1为了考虑最后用户输入栏（以 ❯ 开头但不算一个完整回合）
+			result = limitByBlocks(result, "❯", n+1)
 		}
-		result = strings.Join(lines, "\n")
+	case strings.HasPrefix(limitStr, "."):
+		n := 0
+		fmt.Sscanf(limitStr[1:], "%d", &n)
+		if n > 0 {
+			// 加1为了考虑最后用户输入栏（以 ❯ 开头但不算一个完整回合）
+			result = limitByBlocks(result, "", n+1)
+		}
+	default:
+		n := 0
+		fmt.Sscanf(limitStr, "%d", &n)
+		if n > 0 {
+			lines := strings.Split(result, "\n")
+			if len(lines) > n {
+				lines = lines[len(lines)-n:]
+			}
+			result = strings.Join(lines, "\n")
+		}
 	}
 
 	return result, nil
+}
+
+// limitByBlocks 按块分割输出并返回最后 n 个块。
+// prefix 为空时匹配 ❯ 和 ● 开头的行；非空时只匹配该前缀。
+func limitByBlocks(output, prefix string, n int) string {
+	lines := strings.Split(output, "\n")
+
+	isBlockStart := func(line string) bool {
+		if prefix == "" {
+			return strings.HasPrefix(line, "❯") || strings.HasPrefix(line, "●")
+		}
+		return strings.HasPrefix(line, prefix)
+	}
+
+	// 找出所有块的起始行索引
+	var starts []int
+	for i, line := range lines {
+		if isBlockStart(line) {
+			starts = append(starts, i)
+		}
+	}
+
+	if len(starts) == 0 {
+		return output
+	}
+
+	// 取最后 n 个块的起始位置
+	from := 0
+	if len(starts) > n {
+		from = starts[len(starts)-n]
+	}
+
+	return strings.Join(lines[from:], "\n")
 }
 
 // generateSessionID 生成会话 ID

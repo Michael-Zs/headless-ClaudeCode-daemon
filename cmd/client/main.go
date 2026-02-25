@@ -31,15 +31,17 @@ func (c *unixClient) do(action, sessionID, cwd, text, status string, limit ...in
 		lim = limit[0]
 	}
 
-	reqBody := internal.Request{
+	return c.doRaw(internal.Request{
 		Action:    action,
 		SessionID: sessionID,
 		CWD:       cwd,
 		Text:      text,
 		Status:    status,
 		Limit:     lim,
-	}
+	})
+}
 
+func (c *unixClient) doRaw(reqBody internal.Request) (*internal.Response, error) {
 	body, err := json.Marshal(reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
@@ -161,8 +163,13 @@ func cmdList(client *unixClient) {
 	}
 }
 
-func cmdGet(client *unixClient, sessionID string, limit int) {
-	resp, err := client.do("get", sessionID, "", "", "", limit)
+func cmdGet(client *unixClient, sessionID string, limitStr string) {
+	reqBody := internal.Request{
+		Action:    "get",
+		SessionID: sessionID,
+		LimitStr:  limitStr,
+	}
+	resp, err := client.doRaw(reqBody)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -402,11 +409,11 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Usage: claude-pty get <session_id> [limit]")
 			os.Exit(1)
 		}
-		limit := 0
+		limitStr := ""
 		if len(args) >= 3 {
-			fmt.Sscanf(args[2], "%d", &limit)
+			limitStr = args[2]
 		}
-		cmdGet(client, args[1], limit)
+		cmdGet(client, args[1], limitStr)
 	case "input":
 		if len(args) < 3 {
 			fmt.Fprintln(os.Stderr, "Usage: claude-pty input <session_id> <text>")
