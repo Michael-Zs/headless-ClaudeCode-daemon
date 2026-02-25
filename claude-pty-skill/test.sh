@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SKILL_DIR="$(dirname "$0")" # or hardcode the path to the skill folder
-CLIENT="$SKILL_DIR/client"
+CLIENT="$SKILL_DIR/bin/client"
 
 # 1. Create session
 SESSION=$($CLIENT create /home/zsm/Prj/find_my_director/ | grep "Session created:" | awk '{print $3}')
