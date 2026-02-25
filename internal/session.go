@@ -396,8 +396,8 @@ func (sm *SessionManager) WriteToSession(sessionID, text string) (int, error) {
 	return len(text), nil
 }
 
-// ReadFromSession 从会话读取输出
-func (sm *SessionManager) ReadFromSession(sessionID string) (string, error) {
+// ReadFromSession 从会话读取输出，limit 为最多返回行数（0 表示全部）
+func (sm *SessionManager) ReadFromSession(sessionID string, limit int) (string, error) {
 	sm.mu.RLock()
 	session, ok := sm.sessions[sessionID]
 	sm.mu.RUnlock()
@@ -409,7 +409,7 @@ func (sm *SessionManager) ReadFromSession(sessionID string) (string, error) {
 	// 使用 tmux capture-pane 获取输出
 	// -p: 输出到 stdout
 	// -t: 目标会话
-	// -S -: 从最后一行开始（获取所有历史）
+	// -S -: 从最开始获取全部历史
 	cmd := tmuxCmd("capture-pane", "-p", "-t", session.TmuxSessionName, "-S", "-")
 	output, err := cmd.Output()
 	if err != nil {
@@ -420,7 +420,16 @@ func (sm *SessionManager) ReadFromSession(sessionID string) (string, error) {
 	session.LastActivity = time.Now()
 	session.mu.Unlock()
 
-	return string(output), nil
+	result := strings.TrimRight(string(output), "\n")
+	if limit > 0 {
+		lines := strings.Split(result, "\n")
+		if len(lines) > limit {
+			lines = lines[len(lines)-limit:]
+		}
+		result = strings.Join(lines, "\n")
+	}
+
+	return result, nil
 }
 
 // generateSessionID 生成会话 ID

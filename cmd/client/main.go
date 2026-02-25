@@ -161,8 +161,8 @@ func cmdList(client *unixClient) {
 	}
 }
 
-func cmdGet(client *unixClient, sessionID string) {
-	resp, err := client.do("get", sessionID, "", "", "")
+func cmdGet(client *unixClient, sessionID string, limit int) {
+	resp, err := client.do("get", sessionID, "", "", "", limit)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -375,7 +375,7 @@ func main() {
 		fmt.Println("  create [cwd]          Create a new session")
 		fmt.Println("  list                  List all sessions")
 		fmt.Println("  connect <session_id>  Connect to a session interactively")
-		fmt.Println("  get <session_id>      Get output from a session")
+		fmt.Println("  get <session_id> [limit]  Get output from a session")
 		fmt.Println("  input <session_id> <text>  Send input to a session")
 		fmt.Println("  delete <session_id>  Delete a session")
 		fmt.Println("  info <session_id>    Get session information")
@@ -399,10 +399,14 @@ func main() {
 		cmdConnect(client, args[1])
 	case "get":
 		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "Usage: claude-pty get <session_id>")
+			fmt.Fprintln(os.Stderr, "Usage: claude-pty get <session_id> [limit]")
 			os.Exit(1)
 		}
-		cmdGet(client, args[1])
+		limit := 0
+		if len(args) >= 3 {
+			fmt.Sscanf(args[2], "%d", &limit)
+		}
+		cmdGet(client, args[1], limit)
 	case "input":
 		if len(args) < 3 {
 			fmt.Fprintln(os.Stderr, "Usage: claude-pty input <session_id> <text>")

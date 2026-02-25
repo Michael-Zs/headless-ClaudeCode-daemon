@@ -192,7 +192,7 @@ func (s *Server) handleGet(req Request) Response {
 		return Response{Success: false, Error: "session_id required"}
 	}
 
-	output, err := s.sessionMgr.ReadFromSession(req.SessionID)
+	output, err := s.sessionMgr.ReadFromSession(req.SessionID, req.Limit)
 	if err != nil {
 		return Response{Success: false, Error: err.Error()}
 	}
