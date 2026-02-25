@@ -137,8 +137,8 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 		resp = s.handleSetStatus(req)
 	case "get_status":
 		resp = s.handleGetStatus(req)
-	case "get_session_id":
-		resp = s.handleGetSessionID(req)
+	case "get_info":
+		resp = s.handleGetInfo(req)
 	case "messages":
 		resp = s.handleMessages(req)
 	default:
@@ -247,8 +247,8 @@ func (s *Server) handleGetStatus(req Request) Response {
 	return Response{Success: true, Status: status}
 }
 
-// handleGetSessionID 处理获取真实 session ID 请求
-func (s *Server) handleGetSessionID(req Request) Response {
+// handleGetInfo 处理获取 session 信息请求
+func (s *Server) handleGetInfo(req Request) Response {
 	if req.SessionID == "" {
 		return Response{Success: false, Error: "session_id required"}
 	}

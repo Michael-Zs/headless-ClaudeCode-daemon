@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"claude-pty/internal"
 )
@@ -242,6 +243,30 @@ func cmdLog(client *unixClient, args []string) {
 	}
 }
 
+func cmdInfo(client *unixClient, sessionID string) {
+	resp, err := client.do("get_info", sessionID, "", "", "")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if !resp.Success {
+		fmt.Fprintf(os.Stderr, "Error: %s\n", resp.Error)
+		os.Exit(1)
+	}
+
+	if resp.Session != nil {
+		fmt.Printf("ID:              %s\n", resp.Session.ID)
+		if resp.Session.ClaudeSessionID != "" {
+			fmt.Printf("Claude Session: %s\n", resp.Session.ClaudeSessionID)
+		}
+		fmt.Printf("CWD:             %s\n", resp.Session.CWD)
+		fmt.Printf("Status:          %s\n", resp.Session.Status)
+		fmt.Printf("Created:         %s\n", resp.Session.CreatedAt)
+		fmt.Printf("Last Activity:   %s\n", resp.Session.LastActivity)
+	}
+}
+
 func cmdStatus(client *unixClient, sessionID string) {
 	resp, err := client.do("get_status", sessionID, "", "", "")
 	if err != nil {
@@ -261,25 +286,25 @@ func cmdConnect(client *unixClient, sessionID string) {
 	fmt.Printf("Connecting to session %s...\n", sessionID)
 	fmt.Println("Press Ctrl+C to disconnect")
 
-	// 创建一个读取输出的 goroutine
-	outputChan := make(chan string)
+	done := make(chan bool)
+
+	// 读取输出的 goroutine
 	go func() {
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+
 		for {
-			resp, err := client.do("get", sessionID, "", "", "")
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				close(outputChan)
+			select {
+			case <-done:
 				return
-			}
-
-			if !resp.Success {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", resp.Error)
-				close(outputChan)
-				return
-			}
-
-			if resp.Output != "" {
-				outputChan <- resp.Output
+			case <-ticker.C:
+				resp, err := client.do("get", sessionID, "", "", "")
+				if err != nil {
+					return
+				}
+				if resp.Success && resp.Output != "" {
+					fmt.Print(resp.Output)
+				}
 			}
 		}
 	}()
@@ -288,16 +313,13 @@ func cmdConnect(client *unixClient, sessionID string) {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		text := scanner.Text() + "\n"
-		resp, err := client.do("input", sessionID, "", text, "")
+		_, err := client.do("input", sessionID, "", text, "")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			continue
-		}
-
-		if !resp.Success {
-			fmt.Fprintf(os.Stderr, "Error: %s\n", resp.Error)
 		}
 	}
+
+	close(done)
 }
 
 func main() {
@@ -313,6 +335,7 @@ func main() {
 		fmt.Println("  get <session_id>      Get output from a session")
 		fmt.Println("  input <session_id> <text>  Send input to a session")
 		fmt.Println("  delete <session_id>  Delete a session")
+		fmt.Println("  info <session_id>    Get session information")
 		fmt.Println("  status <session_id>  Get session status")
 		os.Exit(1)
 	}
@@ -349,6 +372,12 @@ func main() {
 			os.Exit(1)
 		}
 		cmdDelete(client, args[1])
+	case "info":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "Usage: claude-pty info <session_id>")
+			os.Exit(1)
+		}
+		cmdInfo(client, args[1])
 	case "log":
 		cmdLog(client, args[1:])
 	case "status":

@@ -1,0 +1,108 @@
+#!/bin/bash
+# claude-pty-client - Shell 客户端
+
+SOCKET="${CLAUDE_PTY_SOCKET:-/tmp/claude-pty.sock}"
+ACTION="$1"
+shift
+
+usage() {
+  echo "Usage: claude-pty <command> [args...]"
+  echo ""
+  echo "Commands:"
+  echo "  create [cwd]              Create new session"
+  echo "  list                      List all sessions"
+  echo "  get <session_id>          Get output"
+  echo "  input <session_id> <text> Send input"
+  echo "  delete <session_id>       Delete session"
+  echo "  status <session_id>       Get session status"
+  echo "  messages <session_id> [limit]  Get message history"
+  echo "  get_info <session_id>      Get session information"
+  exit 1
+}
+
+if [ -z "$ACTION" ]; then
+  echo "Error: command required" >&2
+  usage
+fi
+
+case "$ACTION" in
+  create)
+    CWD="${1:-.}"
+    curl -s -X POST -d "{\"action\":\"create\",\"cwd\":\"$CWD\"}" --unix-socket "$SOCKET" http://localhost/
+    ;;
+
+  list)
+    curl -s --unix-socket "$SOCKET" http://localhost/list
+    ;;
+
+  get)
+    SESSION_ID="$1"
+    if [ -z "$SESSION_ID" ]; then
+      echo "Error: session_id required" >&2
+      exit 1
+    fi
+    curl -s -X POST -d "{\"action\":\"get\",\"session_id\":\"$SESSION_ID\"}" --unix-socket "$SOCKET" http://localhost/
+    ;;
+
+  input)
+    SESSION_ID="$1"
+    TEXT="$2"
+    if [ -z "$SESSION_ID" ] || [ -z "$TEXT" ]; then
+      echo "Error: session_id and text required" >&2
+      exit 1
+    fi
+    curl -s -X POST -d "{\"action\":\"input\",\"session_id\":\"$SESSION_ID\",\"text\":\"$TEXT\"}" --unix-socket "$SOCKET" http://localhost/
+    ;;
+
+  delete)
+    SESSION_ID="$1"
+    if [ -z "$SESSION_ID" ]; then
+      echo "Error: session_id required" >&2
+      exit 1
+    fi
+    curl -s -X POST -d "{\"action\":\"delete\",\"session_id\":\"$SESSION_ID\"}" --unix-socket "$SOCKET" http://localhost/
+    ;;
+
+  status)
+    SESSION_ID="$1"
+    if [ -z "$SESSION_ID" ]; then
+      echo "Error: session_id required" >&2
+      exit 1
+    fi
+    curl -s -X POST -d "{\"action\":\"get_status\",\"session_id\":\"$SESSION_ID\"}" --unix-socket "$SOCKET" http://localhost/
+    ;;
+
+  set_status)
+    SESSION_ID="$1"
+    STATUS="$2"
+    if [ -z "$SESSION_ID" ] || [ -z "$STATUS" ]; then
+      echo "Error: session_id and status required" >&2
+      exit 1
+    fi
+    curl -s -X POST -d "{\"action\":\"set_status\",\"session_id\":\"$SESSION_ID\",\"status\":\"$STATUS\"}" --unix-socket "$SOCKET" http://localhost/
+    ;;
+
+  messages)
+    SESSION_ID="$1"
+    LIMIT="${2:-0}"
+    if [ -z "$SESSION_ID" ]; then
+      echo "Error: session_id required" >&2
+      exit 1
+    fi
+    curl -s -X POST -d "{\"action\":\"messages\",\"session_id\":\"$SESSION_ID\",\"limit\":$LIMIT}" --unix-socket "$SOCKET" http://localhost/
+    ;;
+
+  get_info)
+    SESSION_ID="$1"
+    if [ -z "$SESSION_ID" ]; then
+      echo "Error: session_id required" >&2
+      exit 1
+    fi
+    curl -s -X POST -d "{\"action\":\"get_info\",\"session_id\":\"$SESSION_ID\"}" --unix-socket "$SOCKET" http://localhost/
+    ;;
+
+  *)
+    echo "Unknown command: $ACTION" >&2
+    usage
+    ;;
+esac

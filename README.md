@@ -120,10 +120,10 @@ curl -s -X POST \
   -d '{"action":"delete","session_id":"<id>"}' \
   --unix-socket "$SOCKET" http://localhost/
 
-# 获取真实 session ID
+# 获取 session 信息
 curl -s -X POST \
   -H "Content-Type: application/json" \
-  -d '{"action":"get_session_id","session_id":"<id>"}' \
+  -d '{"action":"get_info","session_id":"<id>"}' \
   --unix-socket "$SOCKET" http://localhost/
 ```
 
