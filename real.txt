@@ -1,0 +1,83 @@
+❯ hi
+
+● 你好！有什么我可以帮你的吗？
+
+❯ tell me about this prj
+
+● 我来帮你了解这个项目的详细信息。
+
+● Searched for 2 patterns, read 2 files (ctrl+o to expand)
+
+● Find My Director 项目简介
+
+  这是一个自动化爬取中国高校导师信息的工具，核心功能是帮助学生查找导师并了解其网
+  络评价。
+
+  主要功能
+
+  ┌────────────────┬─────────────────────────────────────────────────────────┐
+  │      功能      │                          描述                           │
+  ├────────────────┼─────────────────────────────────────────────────────────┤
+  │ 🔍 智能爬取    │ 支持多规则、多线程爬取，使用 DeepSeek AI 提取结构化数据 │
+  ├────────────────┼─────────────────────────────────────────────────────────┤
+  │ 🤖 AI 规则生成 │ 自动分析页面结构，一键生成爬取规则                      │
+  ├────────────────┼─────────────────────────────────────────────────────────┤
+  │ 🎯 评价匹配    │ AI Agent + Function Calling 智能匹配评价与导师          │
+  ├────────────────┼─────────────────────────────────────────────────────────┤
+  │ 📊 数据迁移    │ 支持 Excel、PostgreSQL、SQLite 多种存储后端             │
+  ├────────────────┼─────────────────────────────────────────────────────────┤
+  │ 🌐 舆情扫描    │ 批量扫描知乎、小红书上的导师舆情信息                    │
+  ├────────────────┼─────────────────────────────────────────────────────────┤
+  │ 🖥️  网页前端    │ Streamlit 可视化界面，方便搜索和查询                    │
+  ├────────────────┼─────────────────────────────────────────────────────────┤
+  │ 📡 REST API    │ Flask API 服务器，支持第三方集成                        │
+  └────────────────┴─────────────────────────────────────────────────────────┘
+
+  完整工作流
+
+  supervisors.csv (爬取)
+      ↓ import-csv
+  SQLite teachers 表
+      ↓ agent-scan
+  professor_agent/mediacrawler_output/*.txt (舆情报告)
+      ↓ import-reports
+  SQLite evaluations 表 (待匹配)
+      ↓ evaluation
+  SQLite evaluations 表 (已匹配) + match_history
+
+  项目结构
+
+  find_my_director/
+  ├── main.py                 # 入口，7种运行模式
+  ├── crawler.py              # URL发现，规则系统
+  ├── parse_one.py            # 数据提取，DeepSeek API
+  ├── models.py               # SQLAlchemy ORM模型
+  ├── storage.py              # 存储抽象层
+  ├── evaluation_matcher.py   # AI评价匹配
+  ├── auto_rule_generator.py  # AI规则生成
+  ├── migrate_to_postgres.py  # 数据迁移工具
+  ├── faculty                 # 命令行工具
+  │
+  ├── professor_agent/        # 舆情扫描模块
+  │
+  ├── web/                    # 网页前端和API
+  │   ├── app.py              # Streamlit 主入口
+  │   └── server/api_server.py
+  │
+  └── docs/                   # 详细文档
+
+  快速开始
+
+  # 爬取导师
+  python main.py --mode scrape --rule zju_cs
+
+  # 一键执行完整流程
+  faculty flow zju_cs
+
+  # 启动网页界面
+  streamlit run web/app.py
+
+  # 启动 API 服务器
+  python web/server/api_server.py
+
+  需要我进一步介绍某个具体模块或帮你执行某项任务吗？

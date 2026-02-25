@@ -1,0 +1,1196 @@
+
+[User]
+hi
+
+[Claude]
+你好！有什么我可以帮你的吗？
+
+
+[User]
+tell me about this prj
+
+[Claude]
+我来帮你了解这个项目的详细信息。
+
+[Tool]
+Read: {"file_path":"/home/zsm/Prj/find_my_director/README.md"}
+
+[Tool]
+Glob: {"pattern":"**/*.py"}
+
+
+[User]
+     1→# Find My Director
+     2→
+     3→一个自动化爬取中国高校导师信息的工具，支持 AI 智能提取、评价匹配、舆情扫描等功能。
+     4→
+     5→## 功能特性
+     6→
+     7→- 🔍 **智能爬取** - 支持多规则、多线程爬取，使用 DeepSeek AI 提取结构化数据
+     8→- 🤖 **AI 规则生成** - 自动分析页面结构，一键生成爬取规则
+     9→- 🎯 **评价匹配** - AI Agent + Function Calling 智能匹配评价与导师
+    10→- 📊 **数据迁移** - 支持 Excel、PostgreSQL、SQLite 多种存储后端
+    11→- 🌐 **舆情扫描** - 批量扫描知乎、小红书上的导师舆情信息
+    12→- 🖥️ **网页前端** - Streamlit 可视化界面，方便搜索和查询
+    13→- 📡 **REST API** - Flask API 服务器，支持第三方集成
+    14→
+    15→## 完整工作流
+    16→
+    17→```
+    18→supervisors.csv (爬取)
+    19→    ↓ import-csv
+    20→SQLite teachers 表
+    21→    ↓ agent-scan
+    22→professor_agent/mediacrawler_output/*.txt (舆情报告)
+    23→    ↓ import-reports
+    24→SQLite evaluations 表 (待匹配)
+    25→    ↓ evaluation
+    26→SQLite evaluations 表 (已匹配) + match_history
+    27→```
+    28→
+    29→### 一键执行完整流程
+    30→
+    31→```bash
+    32→# 使用 faculty 命令（推荐）
+    33→faculty flow zju_cs
+    34→
+    35→# 跳过某些步骤
+    36→faculty flow zju_cs --skip-scan
+    37→faculty flow generated/zju_cs --skip-scrape
+    38→```
+    39→
+    40→## 快速开始
+    41→
+    42→### 环境要求
+    43→
+    44→- Python 3.8+
+    45→- DeepSeek API Key
+    46→- PostgreSQL（可选，用于生产环境）
+    47→
+    48→### 安装
+    49→
+    50→```bash
+    51→# 克隆项目
+    52→git clone <repository-url>
+    53→cd find_my_director
+    54→
+    55→# 安装依赖
+    56→pip install -r requirements.txt
+    57→
+    58→# 配置环境变量
+    59→export DEEPSEEK_API_KEY="your_api_key"
+    60→export DATABASE_URL="postgresql://user:pass@localhost:5432/db"  # 可选
+    61→```
+    62→
+    63→## 命令行工具
+    64→
+    65→项目提供 `faculty` 命令行工具，简化常用操作。
+    66→
+    67→### 查看帮助
+    68→
+    69→```bash
+    70→faculty help
+    71→```
+    72→
+    73→### 常用命令
+    74→
+    75→#### 1. 爬取导师信息
+    76→
+    77→```bash
+    78→# 列出所有可用规则
+    79→faculty ls
+    80→
+    81→# 使用规则爬取
+    82→faculty search nju_su
+    83→
+    84→# 使用 AI 生成的规则
+    85→faculty search generated/zju_cs
+    86→```
+    87→
+    88→#### 2. AI 生成新规则
+    89→
+    90→```bash
+    91→# 基础用法
+    92→faculty generate <学校名> <URL>
+    93→
+    94→# 带提示的用法
+    95→faculty generate 清华计算机 "https://cs.tsinghua.edu.cn/faculty/list.htm" --hints "导师信息在 table 标签中"
+    96→```
+    97→
+    98→#### 3. 导入数据
+    99→
+   100→```bash
+   101→# 导入 CSV 到 SQLite
+   102→faculty import-csv --file supervisors.csv
+   103→
+   104→# 导入舆情报告到 SQLite
+   105→faculty import-reports
+   106→```
+   107→
+   108→#### 4. 舆情扫描
+   109→
+   110→```bash
+   111→# 扫描知乎
+   112→faculty scan --platform zhihu --limit 10
+   113→
+   114→# 扫描小红书
+   115→faculty scan --platform xhs --limit 10
+   116→
+   117→# 扫描所有平台
+   118→faculty scan --platform all --limit 5
+   119→```
+   120→
+   121→#### 5. AI 评价匹配
+   122→
+   123→```bash
+   124→# 执行评价匹配
+   125→faculty evaluate --batch-size 100 --threshold 0.7
+   126→```
+   127→
+   128→#### 6. 数据迁移
+   129→
+   130→```bash
+   131→# 导入 Excel 数据
+   132→faculty migrate import --file supervisors.xlsx
+   133→
+   134→# 导出到 PostgreSQL
+   135→faculty migrate sqlite2pg --database-url "postgresql://user:pass@localhost:5432/db"
+   136→
+   137→# 从 PostgreSQL 导出
+   138→faculty migrate pg2sqlite --database-url "postgresql://user:pass@localhost:5432/db"
+   139→```
+   140→
+   141→#### 7. 完整流程
+   142→
+   143→```bash
+   144→# 执行完整流程（爬取 → 导入 → 扫描 → 匹配）
+   145→faculty flow --rule nju_su
+   146→
+   147→# 跳过特定步骤
+   148→faculty flow --rule generated/zju_cs --skip-scrape
+   149→
+   150→# 可选的跳过参数:
+   151→#   --skip-scrape     跳过爬取步骤
+   152→#   --skip-import     跳过导入CSV步骤
+   153→#   --skip-scan       跳过扫描步骤
+   154→#   --skip-evaluate   跳过评价匹配步骤
+   155→```
+   156→
+   157→## Python API
+   158→
+   159→### 直接运行 main.py
+   160→
+   161→```bash
+   162→# 1. 爬取导师信息 → supervisors.csv
+   163→python main.py --mode scrape --rule zju_cs
+   164→
+   165→# 2. 导入 CSV → SQLite teachers 表
+   166→python main.py --mode import-csv --file supervisors.csv
+   167→
+   168→# 3. 批量搜索舆情 → professor_agent/mediacrawler_output/{学校}-{导师}.txt
+   169→python main.py --mode agent-scan --platform zhihu
+   170→# 可选参数:
+   171→#   --school-filter "北京邮电大学"  # 只扫描某学校
+   172→#   --limit 10                      # 限制条数（测试用）
+   173→#   --no-skip-existing             # 强制重新扫描
+   174→#   --delay 2.0                    # 请求间隔
+   175→
+   176→# 4. 导入舆情报告 → SQLite evaluations 表
+   177→python main.py --mode import-reports
+   178→
+   179→# 5. 评价匹配（连接评价与导师）
+   180→DB_TYPE=sqlite python main.py --mode evaluation --batch-size 100
+   181→```
+   182→
+   183→## 网页界面
+   184→
+   185→### Streamlit 前端
+   186→
+   187→```bash
+   188→streamlit run web/app.py
+   189→```
+   190→
+   191→访问 `http://localhost:8501` 即可使用网页界面，功能包括：
+   192→- 🔍 搜索导师（姓名、学校、学院、职称筛选）
+   193→- 🤖 AI 评价匹配
+   194→- 💬 AI 问答导师
+   195→
+   196→### Flask API 服务器
+   197→
+   198→```bash
+   199→python web/server/api_server.py
+   200→```
+   201→
+   202→服务地址：`http://localhost:5000`
+   203→
+   204→#### API 端点
+   205→
+   206→| 端点 | 方法 | 说明 |
+   207→|------|------|------|
+   208→| `/api/health` | GET | 健康检查 |
+   209→| `/api/teachers/search` | GET | 搜索导师 |
+   210→| `/api/teachers/<id>` | GET | 获取导师详情 |
+   211→| `/api/match` | POST | AI 评价匹配 |
+   212→
+   213→#### API 使用示例
+   214→
+   215→```bash
+   216→# 健康检查
+   217→curl http://localhost:5000/api/health
+   218→
+   219→# 搜索导师
+   220→curl "http://localhost:5000/api/teachers/search?name=陈永生&limit=5"
+   221→
+   222→# AI 匹配
+   223→curl -X POST http://localhost:5000/api/match \
+   224→  -H "Content-Type: application/json" \
+   225→  -d '{"content": "陈老师讲课很好，非常负责任"}'
+   226→```
+   227→
+   228→## 项目结构
+   229→
+   230→```
+   231→find_my_director/
+   232→├── main.py                 # 入口，7种运行模式
+   233→├── crawler.py              # URL发现，规则系统
+   234→├── parse_one.py            # 数据提取，DeepSeek API
+   235→├── models.py               # SQLAlchemy ORM模型
+   236→├── storage.py              # 存储抽象层
+   237→├── evaluation_matcher.py   # AI评价匹配
+   238→├── auto_rule_generator.py  # AI规则生成
+   239→├── migrate_to_postgres.py  # 数据迁移工具
+   240→├── faculty                 # 命令行工具
+   241→├── supervisors.csv         # 导师源数据
+   242→├── faculty.db              # SQLite数据库（默认）
+   243→│
+   244→├── professor_agent/        # 舆情扫描模块
+   245→│   ├── web_professor_agent.py
+   246→│   └── mediacrawler_output/
+   247→│
+   248→├── generated_rules/        # AI生成的规则
+   249→│
+   250→├── docs/                   # 详细文档
+   251→│   ├── arch.md             # 系统架构
+   252→│   ├── commands.md         # 命令参考
+   253→│   └── ...
+   254→│
+   255→└── web/                    # 网页前端
+   256→    ├── app.py              # Streamlit 主入口
+   257→    ├── pages/              # Streamlit 页面
+   258→    ├── components/         # Streamlit 组件
+   259→    └── server/             # Flask API 服务器
+   260→        └── api_server.py
+   261→```
+   262→
+   263→## 运行模式说明
+   264→
+   265→### main.py 模式列表
+   266→
+   267→| 模式 | 命令 | 功能 |
+   268→|------|------|------|
+   269→| `scrape` | `--mode scrape --rule <rule_key>` | 传统爬取 |
+   270→| `auto-generate` | `--mode auto-generate --url <url> --school-name <name>` | AI规则生成 |
+   271→| `evaluation` | `--mode evaluation` | AI评价匹配 |
+   272→| `migrate` | `--mode migrate --operation <op>` | 数据迁移（7种操作） |
+   273→| `import-csv` | `--mode import-csv --file <csv>` | CSV → SQLite |
+   274→| `import-reports` | `--mode import-reports` | 舆情报告 → SQLite |
+   275→| `agent-scan` | `--mode agent-scan` | 批量舆情扫描 |
+   276→
+   277→### faculty 命令列表
+   278→
+   279→| 命令 | 功能 |
+   280→|------|------|
+   281→| `faculty search <规则>` | 爬取导师信息 |
+   282→| `faculty generate <学校> <URL>` | AI生成爬取规则 |
+   283→| `faculty import-csv` | 导入CSV到SQLite |
+   284→| `faculty import-reports` | 导入舆情报告到SQLite |
+   285→| `faculty scan` | 批量舆情扫描 |
+   286→| `faculty evaluate` | AI评价匹配 |
+   287→| `faculty migrate <操作>` | 数据迁移 |
+   288→| `faculty flow <规则>` | 完整流程（爬取→导入→扫描→匹配） |
+   289→| `faculty ls` | 列出所有可用规则 |
+   290→
+   291→## 常用命令速查
+   292→
+   293→```bash
+   294→# 爬取
+   295→python main.py --mode scrape --rule nju_su --threads 5
+   296→
+   297→# 导入
+   298→python main.py --mode import-csv --file supervisors.csv --db faculty.db
+   299→
+   300→# 扫描（支持断点续扫）
+   301→python main.py --mode agent-scan --platform zhihu --school-filter "北京邮电大学"
+   302→
+   303→# 评价匹配
+   304→DB_TYPE=sqlite python main.py --mode evaluation --batch-size 100 --threshold 0.7
+   305→```
+   306→
+   307→## 配置说明
+   308→
+   309→### 环境变量
+   310→
+   311→| 变量 | 说明 | 示例 |
+   312→|------|------|------|
+   313→| `DEEPSEEK_API_KEY` | DeepSeek API密钥 | `sk-xxxxx` |
+   314→| `DATABASE_URL` | PostgreSQL连接URL | `postgresql://user:pass@localhost:5432/db` |
+   315→| `DB_TYPE` | 存储类型 | `sqlite` 或 `postgresql`（默认: postgresql） |
+   316→
+   317→### 重要路径
+   318→
+   319→| 路径 | 说明 |
+   320→|------|------|
+   321→| `faculty.db` | 默认 SQLite 数据库 |
+   322→| `supervisors.csv` | CSV 数据文件 |
+   323→| `professor_agent/mediacrawler_output/` | 舆情报告输出目录 |
+   324→| `generated_rules/` | AI 生成的规则目录 |
+   325→
+   326→### 数据库表结构
+   327→
+   328→- **teachers** - 导师信息 (school, name, college, title, email, research...)
+   329→- **evaluations** - 舆情评价 (content, source, match_status...)
+   330→- **match_history** - 匹配历史 (evaluation_id, teacher_id, confidence, decision...)
+   331→
+   332→### 命令行选项
+   333→
+   334→| 选项 | 说明 |
+   335→|------|------|
+   336→| `--threads` | 线程数（默认: 10） |
+   337→| `--no-debug` | 关闭调试模式 |
+   338→| `--hints` | 页面结构提示 |
+   339→| `--model` | DeepSeek模型（默认: deepseek-chat） |
+   340→| `--db` | SQLite数据库路径（默认: faculty.db） |
+   341→| `--platform` | 搜索平台: zhihu/xhs/all |
+   342→| `--limit` | 限制扫描数量 |
+   343→| `--batch-size` | 评价匹配批量大小 |
+   344→| `--threshold` | 自动匹配置信度阈值 |
+   345→
+   346→## 详细文档
+   347→
+   348→- [系统架构](docs/arch.md) - 架构图、各模块职责、数据流
+   349→- [命令参考](docs/commands.md) - 所有命令和参数
+   350→- [PostgreSQL配置](docs/POSTGRESQL_SETUP.md) - 数据库安装配置
+   351→- [调试指南](docs/DEBUG_GUIDE.md) - 调试功能使用
+   352→- [评价系统指南](docs/EVALUATION_SYSTEM_GUIDE.md) - 评价匹配详解
+   353→- [AI规则生成](docs/AUTO_RULE_GENERATOR_GUIDE.md) - 自动规则生成
+   354→- [SQLite使用](docs/SQLITE_USAGE.md) - SQLite后端指南
+   355→
+   356→## 许可证
+   357→
+   358→MIT License
+   359→
+   360→## 贡献
+   361→
+   362→欢迎提交 Issue 和 Pull Request！
+   363→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>
+
+
+
+[User]
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/_yaml/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/yaml/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cycler/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_repo_version.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_web_error.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/__main__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_json_pipe.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_page.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_har_router.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_errors.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_async_base.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_selectors.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_file_chooser.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_event_context_manager.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_browser.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_element_handle.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_greenlets.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_transport.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_artifact.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_writable_stream.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_str_utils.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_fetch.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_browser_context.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/numpy/__config__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/numpy/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/numpy/_configtool.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/numpy/_array_api_info.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/pylab.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/matplotlib/units.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/matplotlib/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/matplotlib/legend.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/info.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/__main__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/version.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/report.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/batch/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/activator.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/via_template.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/bash/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/fish/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/cshell/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/nushell/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/powershell/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/app_data/base.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/app_data/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/app_data/via_disk_folder.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/app_data/na.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/app_data/read_only.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/python/activate_this.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/python/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/app_data/via_tempdir.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/config/cli/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/config/cli/parser.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/config/env_var.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/config/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/config/convert.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/config/ini.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/debug.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/creator.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/_virtualenv.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/api.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/describe.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/pyenv_cfg.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/builtin_way.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/cpython/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/cpython/common.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/ref.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/via_global_self_do.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/venv.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/store.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/pypy/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/cpython/mac_os.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/cpython/cpython3.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/graalpy/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/discovery/builtin.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/discovery/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/discovery/cached_py_info.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/discovery/discover.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/pypy/common.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/pypy/pypy3.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/discovery/py_info.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/discovery/py_spec.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/lxml/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/lxml/ElementInclude.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/__about__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/exceptions.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/fernet.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/hazmat/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/utils.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/hazmat/backends/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/hazmat/backends/openssl/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/hazmat/backends/openssl/backend.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/hazmat/_oid.py
+(Results are truncated. Consider using a more specific path or pattern.)
+
+[Tool]
+Glob: {"pattern":"*.py"}
+
+[Tool]
+Read: {"file_path":"/home/zsm/Prj/find_my_director/docs/arch.md"}
+
+
+[User]
+     1→# 系统架构
+     2→
+     3→本文档详细介绍项目的整体架构、各模块职责和相互关系。
+     4→
+     5→---
+     6→
+     7→## 1. 系统架构图
+     8→
+     9→```
+    10→┌────────────────────────────────────────────────────────────────────────────────────┐
+    11→│                                  main.py (入口)                                     │
+    12→│   7种运行模式: scrape | auto-generate | evaluation | migrate |                      │
+    13→│               import-csv | import-reports | agent-scan                              │
+    14→└──────────────────────────────────┬─────────────────────────────────────────────────┘
+    15→                                   │
+    16→   ┌───────────────┬───────────────┼───────────────┬────────────────┐
+    17→   │               │               │               │                │
+    18→   ▼               ▼               ▼               ▼                ▼
+    19→┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────────┐
+    20→│ 爬虫模块 │ │AI规则生成│ │  评价匹配    │ │  舆情扫描    │ │    数据迁移      │
+    21→│          │ │          │ │              │ │              │ │                  │
+    22→│crawler.py│ │auto_rule_│ │evaluation_   │ │professor_    │ │migrate_to_       │
+    23→│parse_one │ │generator │ │matcher.py    │ │agent/        │ │postgres.py       │
+    24→└────┬─────┘ └──────────┘ └──────────────┘ │web_professor │ └──────────────────┘
+    25→     │                                      │_agent.py     │
+    26→     │                                      └──────┬───────┘
+    27→     │                                             │
+    28→     └────────────────────────┬────────────────────┘
+    29→                              │
+    30→                              ▼
+    31→                    ┌──────────────────┐
+    32→                    │   存储抽象层     │
+    33→                    │    storage.py    │
+    34→                    └───────┬──────────┘
+    35→                              │
+    36→        ┌─────────────────────┼─────────────────────┐
+    37→        │                     │                     │
+    38→        ▼                     ▼                     ▼
+    39→┌───────────────┐    ┌──────────────────┐   ┌─────────────────┐
+    40→│ PostgreSQL    │    │     SQLite       │   │      Excel      │
+    41→│   Backend     │    │     Backend      │   │     Backend     │
+    42→└───────────────┘    └──────────────────┘   └─────────────────┘
+    43→```
+    44→
+    45→---
+    46→
+    47→## 2. 核心模块说明
+    48→
+    49→### 2.1 入口模块 (main.py)
+    50→
+    51→| 功能 | 说明 |
+    52→|------|------|
+    53→| **scrape_mode** | 传统爬取模式，调用 crawler + parse_one |
+    54→| **auto_generate_mode** | AI自动规则生成，调用 AutoRuleGenerator |
+    55→| **evaluation_mode** | AI评价匹配，调用 EvaluationMatcher（支持 SQLite/PG） |
+    56→| **migrate_mode** | 数据迁移，调用 migrate_to_postgres |
+    57→| **import_csv_mode** | CSV → SQLite teachers 表 |
+    58→| **import_reports_mode** | professor_agent/*.txt → SQLite evaluations 表 |
+    59→| **agent_scan_mode** | 批量遍历导师，调用 web_professor_agent，结果保存为 .txt |
+    60→
+    61→### 2.2 爬虫模块 (crawler.py, parse_one.py)
+    62→
+    63→#### crawler.py - URL 发现
+    64→
+    65→| 函数 | 职责 |
+    66→|------|------|
+    67→| `fetch_detail_urls()` | 主入口，处理单URL/多URL/多分类/二阶段爬取 |
+    68→| `load_generated_rule()` | 加载AI生成的规则文件 |
+    69→| `add_rule()` | 程序化添加新规则 |
+    70→
+    71→**规则系统支持的模式：**
+    72→- 单URL模式：`{"url": "...", "parse": lambda}`
+    73→- 多URL模式：`{"urls": [...], "parse": lambda}`
+    74→- 多分类模式：`{"categories": [...], "parse": lambda}`
+    75→- 二阶段模式：`{"url": "...", "parse": lambda, "second_parse": lambda}`
+    76→
+    77→#### parse_one.py - 数据提取
+    78→
+    79→| 函数 | 职责 |
+    80→|------|------|
+    81→| `extract_one()` | 调用 DeepSeek API 从HTML提取结构化JSON |
+    82→| `email_exists()` | 基于邮箱去重 |
+    83→| `process_teachers_multithreaded()` | 多线程并发处理 |
+    84→
+    85→### 2.3 规则生成模块 (auto_rule_generator.py)
+    86→
+    87→```
+    88→┌─────────────────────────────────────────────────────────┐
+    89→│              AutoRuleGenerator                           │
+    90→├─────────────────────────────────────────────────────────┤
+    91→│  1. 页面分析器 (RuleAnalyzer)                          │
+    92→│     - 下载页面，使用Playwright渲染                      │
+    93→│     - 分析DOM结构，提取关键元素                         │
+    94→│                                                         │
+    95→│  2. 规则生成器 (RuleGenerator)                          │
+    96→│     - 调用DeepSeek API生成parse函数                     │
+    97→│     - 支持用户提示优化                                  │
+    98→│                                                         │
+    99→│  3. 规则验证器 (RuleValidator)                          │
+   100→│     - 测试提取准确率                                    │
+   101→│     - 验证至少5个有效URL                                │
+   102→│                                                         │
+   103→│  4. 规则执行器 (RuleExecutor)                           │
+   104→│     - 执行生成的规则                                    │
+   105→│     - 返回提取结果                                      │
+   106→└─────────────────────────────────────────────────────────┘
+   107→```
+   108→
+   109→### 2.4 评价匹配模块 (evaluation_matcher.py)
+   110→
+   111→```
+   112→┌─────────────────────────────────────────────────────────┐
+   113→│              EvaluationMatcher                          │
+   114→├─────────────────────────────────────────────────────────┤
+   115→│  1. 获取待匹配评价 (storage.get_pending_evaluations)  │
+   116→│                                                         │
+   117→│  2. 构建Agent Prompt                                    │
+   118→│     - system_prompt: 匹配规则和工具定义                │
+   119→│     - user_prompt: 评价信息                             │
+   120→│                                                         │
+   121→│  3. DeepSeek Function Calling                          │
+   122→│     - search_teachers(): 查询导师                     │
+   123→│     - get_teacher_details(): 获取详情                  │
+   124→│                                                         │
+   125→│  4. 置信度评分                                          │
+   126→│     - 0.9-1.0: 自动匹配                                │
+   127→│     - 0.7-0.9: 自动匹配但标记注意                      │
+   128→│     - 0.5-0.7: 需人工审核                              │
+   129→│     - 0.0-0.5: 拒绝匹配                                │
+   130→│                                                         │
+   131→│  5. 记录结果 (storage.update_evaluation_match)        │
+   132→└─────────────────────────────────────────────────────────┘
+   133→```
+   134→
+   135→### 2.5 舆情扫描模块 (professor_agent/)
+   136→
+   137→```
+   138→┌─────────────────────────────────────────────────────────┐
+   139→│           professor_agent/web_professor_agent.py         │
+   140→├─────────────────────────────────────────────────────────┤
+   141→│  web_professor_agent(school, name, platform)            │
+   142→│                                                         │
+   143→│  1. 调用 MediaCrawler 搜索知乎/小红书                   │
+   144→│  2. 获取搜索结果页面内容                                │
+   145→│  3. 调用 DeepSeek API 分析舆情                          │
+   146→│  4. 返回结构化分析报告（字符串）                        │
+   147→│                                                         │
+   148→│  支持平台: zhihu（知乎）| xhs（小红书）| all（两者）    │
+   149→│                                                         │
+   150→│  输出目录: professor_agent/mediacrawler_output/         │
+   151→│  文件命名: {学校}-{导师}.txt                            │
+   152→└─────────────────────────────────────────────────────────┘
+   153→```
+   154→
+   155→**命中率说明**：绝大多数导师在知乎/小红书无内容，只有有重大负面新闻的导师（学术不端、师生矛盾等）才能搜到内容。这是正常现象，该工具定位为"风险导师识别"。
+   156→
+   157→### 2.6 存储模块 (storage.py)
+   158→
+   159→#### 抽象基类 (StorageBackend)
+   160→
+   161→```python
+   162→class StorageBackend(ABC):
+   163→    # 老师相关
+   164→    def add_teacher(teacher_info) -> int
+   165→    def teacher_exists(email) -> bool
+   166→    def search_teachers(name, school, college) -> List
+   167→    def get_teacher_by_id(teacher_id) -> Dict
+   168→    def get_teacher_by_email(email) -> Dict
+   169→
+   170→    # 评价相关
+   171→    def add_evaluation(evaluation_info) -> int
+   172→    def get_pending_evaluations(limit) -> List
+   173→    def update_evaluation_match(evaluation_id, teacher_id, confidence, reason, status)
+   174→
+   175→    # 历史记录
+   176→    def add_match_history(history_info) -> int
+   177→```
+   178→
+   179→#### 后端实现
+   180→
+   181→| 后端 | 文件 | 用途 |
+   182→|------|------|------|
+   183→| PostgreSQLBackend | storage.py | 推荐的生产环境 |
+   184→| SQLiteBackend | storage.py | 轻量级/本地开发 |
+   185→| ExcelBackend | storage.py | 向后兼容 |
+   186→
+   187→### 2.7 数据模型 (models.py)
+   188→
+   189→```
+   190→┌─────────────┐       ┌─────────────┐       ┌─────────────┐
+   191→│   Teacher   │       │Evaluation   │       │   Match     │
+   192→│             │◄──────│   (评价)    │◄──────│  History    │
+   193→│ id          │  1:N  │ teacher_id  │  1:N  │evaluation_id│
+   194→│ name        │       │ match_status│       │confidence   │
+   195→│ school      │       │ content     │       │ decision    │
+   196→│ college     │       │ rating      │       │ reasoning   │
+   197→│ email       │       │ source_id   │       │ tool_calls  │
+   198→│ title       │       └─────────────┘       └─────────────┘
+   199→│ research    │             │
+   200→└─────────────┘             │
+   201→                            │ N:1
+   202→                    ┌───────┴───────┐
+   203→                    │EvaluationSource│
+   204→                    │               │
+   205→                    │ source_name   │
+   206→                    │ source_url    │
+   207→                    │ crawler_config│
+   208→                    └───────────────┘
+   209→```
+   210→
+   211→---
+   212→
+   213→## 3. 数据流
+   214→
+   215→### 3.1 爬取流程
+   216→
+   217→```
+   218→URL列表 → fetch_detail_urls() [Playwright]
+   219→           │
+   220→           ▼
+   221→    导师详情页URL列表
+   222→           │
+   223→           ▼
+   224→    process_teachers_multithreaded() [多线程]
+   225→           │
+   226→     ┌─────┴─────┐
+   227→     ▼           ▼
+   228→fetch_html() 提取HTML
+   229→     │           │
+   230→     ▼           ▼
+   231→extract_one() DeepSeek API
+   232→     │           │
+   233→     ▼           ▼
+   234→email_exists() 去重检查
+   235→     │           │
+   236→     ├─ 重复 ───┤ → 跳过
+   237→     │           │
+   238→     ▼           ▼
+   239→ 写入Excel/CSV 或 PostgreSQL
+   240→```
+   241→
+   242→### 3.2 评价匹配流程
+   243→
+   244→```
+   245→待匹配评价队列
+   246→     │
+   247→     ▼
+   248→ EvaluationMatcher.process_pending_evaluations()
+   249→     │
+   250→     ▼
+   251→ 构建Agent Prompt + 评价信息
+   252→     │
+   253→     ▼
+   254→ DeepSeek Function Calling
+   255→     │
+   256→     ├─ 调用 search_teachers()
+   257→     │        │
+   258→     │        ▼
+   259→     │   返回候选导师列表
+   260→     │
+   261→     ├─ 调用 get_teacher_details()
+   262→     │        │
+   263→     │        ▼
+   264→     │   返回导师详情
+   265→     │
+   266→     ▼
+   267→ 分析匹配，计算置信度
+   268→     │
+   269→     ├─ >= 阈值 → 更新为 matched
+   270→     ├─ 0.5-0.7 → 更新为 needs_review
+   271→     └─ < 0.5 → 更新为 rejected
+   272→
+   273→     │
+   274→     ▼
+   275→ 记录到 MatchHistory
+   276→```
+   277→
+   278→---
+   279→
+   280→## 4. 配置管理
+   281→
+   282→### 4.1 环境变量
+   283→
+   284→| 变量 | 说明 | 示例 |
+   285→|------|------|------|
+   286→| `DATABASE_URL` | PostgreSQL连接URL | `postgresql://user:pass@localhost:5432/db` |
+   287→| `DEEPSEEK_API_KEY` | DeepSeek API密钥 | `sk-xxxxx` |
+   288→
+   289→### 4.2 API配置
+   290→
+   291→| 位置 | 说明 |
+   292→|------|------|
+   293→| `parse_one.py:9` | 爬虫提取API (deepseek-chat) |
+   294→| `evaluation_matcher.py` | 评价匹配API (function calling) |
+   295→| `auto_rule_generator.py` | 规则生成API |
+   296→
+   297→---
+   298→
+   299→## 5. 扩展开发
+   300→
+   301→### 5.1 添加新存储后端
+   302→
+   303→```python
+   304→class MyBackend(StorageBackend):
+   305→    def add_teacher(self, teacher_info):
+   306→        # 实现你的逻辑
+   307→        pass
+   308→
+   309→# 注册到工厂函数
+   310→# storage.py 中的 get_storage_backend() 添加 case
+   311→```
+   312→
+   313→### 5.2 添加新爬取规则
+   314→
+   315→```python
+   316→# 方式1: 硬编码
+   317→RULES["my_school"] = {
+   318→    "url": "https://...",
+   319→    "parse": lambda soup: [...]
+   320→}
+   321→
+   322→# 方式2: 动态加载
+   323→# python main.py --mode auto-generate --url "..." --school-name "my_school"
+   324→```
+   325→
+   326→---
+   327→
+   328→## 6. 目录结构
+   329→
+   330→```
+   331→find_my_director/
+   332→├── main.py                 # 入口，支持7种模式
+   333→├── crawler.py              # URL发现，规则系统
+   334→├── parse_one.py            # 数据提取，DeepSeek API
+   335→├── models.py               # SQLAlchemy ORM模型
+   336→├── storage.py              # 存储抽象层
+   337→├── evaluation_matcher.py   # AI评价匹配
+   338→├── auto_rule_generator.py  # AI规则生成
+   339→├── migrate_to_postgres.py  # 数据迁移工具
+   340→├── debug.py                # 调试模块
+   341→├── supervisors.csv         # 导师源数据
+   342→├── faculty.db              # SQLite数据库（默认）
+   343→│
+   344→├── professor_agent/        # 舆情扫描模块
+   345→│   ├── web_professor_agent.py
+   346→│   └── mediacrawler_output/   # 舆情报告输出目录
+   347→│       └── {学校}-{导师}.txt
+   348→│
+   349→├── generated_rules/        # AI生成的规则
+   350→│   └── *.json
+   351→│
+   352→├── docs/                   # 详细文档
+   353→│   ├── arch.md             # 本文件
+   354→│   ├── commands.md         # 命令参考
+   355→│   ├── AGENT_SCAN_PIPELINE.md  # 舆情扫描pipeline说明
+   356→│   ├── IMPORT_MODE_GUIDE.md    # 导入模式指南
+   357→│   └── ...
+   358→│
+   359→└── supervisors.xlsx        # 爬取结果（Excel格式，向后兼容）
+   360→├── web/                    # 网页前端
+   361→│   ├── app.py             # Streamlit 主入口
+   362→│   ├── pages/             # Streamlit 页面
+   363→│   │   ├── 1_搜索导师.py
+   364→│   │   ├── 2_AI匹配.py
+   365→│   │   └── 3_AI问答.py
+   366→│   ├── components/        # Streamlit 组件
+   367→│   ├── .streamlit/       # Streamlit 配置
+   368→│   │   └── config.toml
+   369→│   └── server/           # Flask API 服务器
+   370→│       ├── api_server.py
+   371→│       └── api_test.sh
+   372→```
+   373→
+   374→---
+   375→
+   376→## 7. API 接口
+   377→
+   378→项目提供两种访问方式：网页界面和 REST API。
+   379→
+   380→### 7.1 Flask API 服务器
+   381→
+   382→启动 API 服务器：
+   383→```bash
+   384→python web/server/api_server.py
+   385→```
+   386→
+   387→服务地址：`http://localhost:5000`
+   388→
+   389→#### 7.1.1 健康检查
+   390→
+   391→```bash
+   392→GET /api/health
+   393→```
+   394→
+   395→响应：
+   396→```json
+   397→{"status": "ok"}
+   398→```
+   399→
+   400→#### 7.1.2 搜索导师
+   401→
+   402→```bash
+   403→GET /api/teachers/search?name=xxx&school=xxx&college=xxx&limit=10
+   404→```
+   405→
+   406→参数：
+   407→| 参数 | 类型 | 说明 |
+   408→|------|------|------|
+   409→| name | string | 姓名（模糊匹配）|
+   410→| school | string | 学校名称 |
+   411→| college | string | 学院名称 |
+   412→| limit | int | 返回数量限制，默认10 |
+   413→
+   414→响应：
+   415→```json
+   416→{
+   417→    "success": true,
+   418→    "count": 5,
+   419→    "data": [
+   420→        {
+   421→            "id": 1,
+   422→            "name": "陈永生",
+   423→            "school": "浙江大学",
+   424→            "college": "计算机学院",
+   425→            "title": "教授",
+   426→            "email": "chenys@zju.edu.cn",
+   427→            "research": "人工智能、机器学习"
+   428→        }
+   429→    ]
+   430→}
+   431→```
+   432→
+   433→#### 7.1.3 获取导师详情
+   434→
+   435→```bash
+   436→GET /api/teachers/<id>
+   437→```
+   438→
+   439→响应：
+   440→```json
+   441→{
+   442→    "success": true,
+   443→    "data": {
+   444→        "id": 1,
+   445→        "name": "陈永生",
+   446→        "school": "浙江大学",
+   447→        "college": "计算机学院",
+   448→        "title": "教授",
+   449→        "email": "chenys@zju.edu.cn",
+   450→        "research": "人工智能、机器学习",
+   451→        "orientation": "计算机科学",
+   452→        "mark": null
+   453→    }
+   454→}
+   455→```
+   456→
+   457→#### 7.1.4 AI 评价匹配
+   458→
+   459→```bash
+   460→POST /api/match
+   461→Content-Type: application/json
+   462→
+   463→{
+   464→    "raw_teacher_name": "陈永生",
+   465→    "raw_school_name": "浙江大学",
+   466→    "content": "陈老师讲课很好，非常负责任"
+   467→}
+   468→```
+   469→
+   470→响应：
+   471→```json
+   472→{
+   473→    "success": true,
+   474→    "teacher_id": 1,
+   475→    "confidence": 0.95,
+   476→    "reasoning": "姓名和学校完全匹配...",
+   477→    "teacher": {
+   478→        "name": "陈永生",
+   479→        "school": "浙江大学"
+   480→    }
+   481→}
+   482→```
+   483→
+   484→### 7.2 Streamlit 网页前端
+   485→
+   486→启动网页界面：
+   487→```bash
+   488→streamlit run web/app.py
+   489→```
+   490→
+   491→访问地址：`http://localhost:8501`
+   492→
+   493→功能：
+   494→- 🔍 搜索导师（姓名、学校、学院、职称筛选）
+   495→- 🤖 AI 评价匹配
+   496→- 💬 AI 问答导师
+   497→
+   498→### 7.3 使用 curl 测试
+   499→
+   500→```bash
+   501→# 运行测试脚本
+   502→bash web/server/api_test.sh
+   503→
+   504→# 或手动测试
+   505→curl http://localhost:5000/api/health
+   506→curl "http://localhost:5000/api/teachers/search?limit=5"
+   507→curl -X POST http://localhost:5000/api/match \
+   508→  -H "Content-Type: application/json" \
+   509→  -d '{"content": "陈老师很好"}'
+   510→```
+   511→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>
+
+
+
+[User]
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/_yaml/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/yaml/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cycler/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_repo_version.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_web_error.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/__main__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_json_pipe.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_page.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_har_router.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_errors.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_async_base.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_selectors.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_file_chooser.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_event_context_manager.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_browser.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_element_handle.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_greenlets.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_transport.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_artifact.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_writable_stream.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_str_utils.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_fetch.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/playwright/_impl/_browser_context.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/numpy/__config__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/numpy/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/numpy/_configtool.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/numpy/_array_api_info.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/pylab.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/matplotlib/units.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/matplotlib/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/matplotlib/legend.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/info.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/__main__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/version.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/report.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/batch/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/activator.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/via_template.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/bash/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/fish/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/cshell/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/nushell/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/powershell/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/app_data/base.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/app_data/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/app_data/via_disk_folder.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/app_data/na.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/app_data/read_only.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/python/activate_this.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/activation/python/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/app_data/via_tempdir.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/config/cli/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/config/cli/parser.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/config/env_var.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/config/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/config/convert.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/config/ini.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/debug.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/creator.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/_virtualenv.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/api.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/describe.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/pyenv_cfg.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/builtin_way.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/cpython/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/cpython/common.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/ref.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/via_global_self_do.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/venv.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/store.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/pypy/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/cpython/mac_os.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/cpython/cpython3.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/graalpy/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/discovery/builtin.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/discovery/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/discovery/cached_py_info.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/discovery/discover.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/pypy/common.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/create/via_global_ref/builtin/pypy/pypy3.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/discovery/py_info.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/virtualenv/discovery/py_spec.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/lxml/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/lxml/ElementInclude.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/__about__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/exceptions.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/fernet.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/hazmat/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/utils.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/hazmat/backends/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/hazmat/backends/openssl/__init__.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/hazmat/backends/openssl/backend.py
+/home/zsm/Prj/find_my_director/MediaCrawler/.venv/lib/python3.11/site-packages/cryptography/hazmat/_oid.py
+(Results are truncated. Consider using a more specific path or pattern.)
+
+[Claude]
+## Find My Director 项目简介
+
+这是一个**自动化爬取中国高校导师信息的工具**，核心功能是帮助学生查找导师并了解其网络评价。
+
+### 主要功能
+
+| 功能 | 描述 |
+|------|------|
+| 🔍 **智能爬取** | 支持多规则、多线程爬取，使用 DeepSeek AI 提取结构化数据 |
+| 🤖 **AI 规则生成** | 自动分析页面结构，一键生成爬取规则 |
+| 🎯 **评价匹配** | AI Agent + Function Calling 智能匹配评价与导师 |
+| 📊 **数据迁移** | 支持 Excel、PostgreSQL、SQLite 多种存储后端 |
+| 🌐 **舆情扫描** | 批量扫描知乎、小红书上的导师舆情信息 |
+| 🖥️ **网页前端** | Streamlit 可视化界面，方便搜索和查询 |
+| 📡 **REST API** | Flask API 服务器，支持第三方集成 |
+
+### 完整工作流
+
+```
+supervisors.csv (爬取)
+    ↓ import-csv
+SQLite teachers 表
+    ↓ agent-scan
+professor_agent/mediacrawler_output/*.txt (舆情报告)
+    ↓ import-reports
+SQLite evaluations 表 (待匹配)
+    ↓ evaluation
+SQLite evaluations 表 (已匹配) + match_history
+```
+
+### 项目结构
+
+```
+find_my_director/
+├── main.py                 # 入口，7种运行模式
+├── crawler.py              # URL发现，规则系统
+├── parse_one.py            # 数据提取，DeepSeek API
+├── models.py               # SQLAlchemy ORM模型
+├── storage.py              # 存储抽象层
+├── evaluation_matcher.py   # AI评价匹配
+├── auto_rule_generator.py  # AI规则生成
+├── migrate_to_postgres.py  # 数据迁移工具
+├── faculty                 # 命令行工具
+│
+├── professor_agent/        # 舆情扫描模块
+│
+├── web/                    # 网页前端和API
+│   ├── app.py              # Streamlit 主入口
+│   └── server/api_server.py
+│
+└── docs/                   # 详细文档
+```
+
+### 快速开始
+
+```bash
+# 爬取导师
+python main.py --mode scrape --rule zju_cs
+
+# 一键执行完整流程
+faculty flow zju_cs
+
+# 启动网页界面
+streamlit run web/app.py
+
+# 启动 API 服务器
+python web/server/api_server.py
+```
+
+需要我进一步介绍某个具体模块或帮你执行某项任务吗？
+
