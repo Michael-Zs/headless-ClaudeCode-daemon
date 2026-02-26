@@ -22,7 +22,7 @@ while true; do
   stopped) break ;;
   running) sleep 2 ;;
   need_permission)
-    $CLIENT get "$SESSION" 30 # see what it wants
+    $CLIENT get "$SESSION" ".1" # see what it wants
     sleep 1
     $CLIENT input "$SESSION" "Enter" # approve default selection
     sleep 1
