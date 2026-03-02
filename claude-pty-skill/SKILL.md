@@ -3,209 +3,279 @@ name: claude-pty
 description: Use when you need to run Claude Code in a managed PTY session — creating sessions, sending prompts, reading output, handling permission requests, and cleaning up. Covers the full lifecycle of a claude-pty session.
 ---
 
-# Claude PTY Session Management
+# Orchestrating Claude Sub-agents
 
-This skill teaches you how to operate Claude Code sessions via the `claude-pty` server using the binaries located in the `bin/` folder inside this skill folder.
+This skill lets you (the orchestrator) spawn Claude Code sub-agents, read their output, and **decide what to do next based on what you learn**. You are not running a fixed script — you are an intelligent controller that observes, reasons, and adapts.
 
 **Binaries:** `./bin/client` and `./bin/server` (relative to this skill folder)
 
 ---
 
-## Overview
+## The orchestration loop
 
-The `client` tool talks to a running `claude-pty-server` over a Unix socket. It lets you:
+```
+┌─────────────────────────────────────────────┐
+│                                             │
+│   spawn / send prompt                       │
+│         │                                   │
+│         ▼                                   │
+│     [sub-agent works]                       │
+│         │                                   │
+│         ▼                                   │
+│   read output with get                      │
+│         │                                   │
+│         ▼                                   │
+│   YOU decide what to do next  ◄─────────┐  │
+│         │                               │  │
+│    ┌────┴─────────────────────┐         │  │
+│    │                         │         │  │
+│    ▼                         ▼         │  │
+│  done?              send follow-up ────┘  │
+│  clean up           spawn more agents      │
+│                     escalate to user       │
+└─────────────────────────────────────────────┘
+```
 
-- Create and list Claude sessions
-- Send text input and keystrokes
-- Read terminal output
-- Monitor session status
-- Delete sessions when done
+The intelligence lives in **you reading the output and deciding**. The commands are just the mechanism.
 
 ---
 
-## Step 0 — Make sure the server is running
+## Step 0 — Ensure server is running
 
-Before using any command, the `claude-pty-server` must be running. If you see this error from any `client` call:
-
-```
-Error: do request: Post "http://localhost/": dial unix /tmp/claude-pty.sock: connect: no such file or directory
+```bash
+./bin/client list
 ```
 
-The server is not running. Start it in the background:
+If that fails with a socket error, start the server:
 
 ```bash
 ./bin/server &
 sleep 1
 ```
 
-Then retry your command. You only need to do this once — the server stays running until the machine reboots or it is explicitly killed.
+---
+
+## Step 1 — Spawn a sub-agent
+
+```bash
+SESSION=$(./bin/client create /path/to/workdir | grep "Session created:" | awk '{print $3}')
+```
+
+Wait ~1 second before sending the first prompt — Claude needs a moment to initialize.
 
 ---
 
-## Step 1 — Orient yourself with `create` and `list`
-
-Before doing anything, get context about what sessions exist.
+## Step 2 — Delegate a task
 
 ```bash
-# List all existing sessions
-./bin/client list
+./bin/client input "$SESSION" "Your task here"
+./bin/client input "$SESSION" "Enter"
 ```
 
-Output columns: `ID`, `CWD` (working directory), `Status`.
+**Tip:** Ask sub-agents to produce structured output (JSON, a summary line, a yes/no answer) so you can parse and reason about their response more easily.
 
 ```bash
-# Create a new session (optionally pass a working directory)
-./bin/client create /path/to/workdir
-```
+# Good: structured output makes your decision easy
+./bin/client input "$SESSION" "Check if all tests pass. Reply with exactly: PASS or FAIL, then explain why."
+./bin/client input "$SESSION" "Enter"
 
-This prints the new session ID. Save it — you will use it for every subsequent command.
-
----
-
-## Step 2 — Check session info with `info`
-
-```bash
-./bin/client info <session_id>
-```
-
-This shows the session's status, working directory, creation time, and last activity. The key field is **Status**, which tells you what Claude is doing right now.
-
-### Status meanings
-
-| Status | Meaning | What to do |
-|---|---|---|
-| `running` | Claude is actively processing | **Wait.** Do not send input yet. Poll with `info` or `get` until the status changes. |
-| `stopped` | Claude has finished and is idle | Safe to read output with `get`, then send the next prompt with `input`. |
-| `need_permission` | Claude is waiting for you to approve or deny a tool-use permission | Read the output with `get` to see what it is asking. If you want to allow it, send the selection keys. |
-
----
-
-## Step 3 — Read output with `get`
-
-```bash
-# Get full terminal output
-./bin/client get <session_id>
-
-# Get only the last N lines (useful to avoid huge output)
-./bin/client get <session_id> 100
-```
-
-Always use a limit when you just want recent context. Use `get` to:
-
-- Understand what Claude has done so far
-- See what permission it is requesting (when status is `need_permission`)
-- Confirm a prompt was received and is being processed
-
----
-
-## Step 4 — Send a prompt with `input`
-
-Send the prompt text first, then send `Enter` as a separate call to submit it.
-
-```bash
-# Send the prompt text
-./bin/client input <session_id> "your prompt here"
-
-# Submit it (press Enter)
-./bin/client input <session_id> "Enter"
-```
-
-**Important:** Always send these as two separate calls. The first call types the text; the second call submits it.
-
----
-
-## Step 5 — Handle `need_permission` status
-
-When `info` shows `need_permission`, Claude is showing an interactive permission dialog. Run `get` to read what permission is being requested.
-
-Navigate and confirm using individual key presses — each is a separate `input` call:
-
-```bash
-# Move selection up
-./bin/client input <session_id> "Up"
-
-# Move selection down
-./bin/client input <session_id> "Down"
-
-# Confirm the current selection
-./bin/client input <session_id> "Enter"
-```
-
-Typical dialog options are "Yes" / "No" / "Always allow". Use `Up`/`Down` to highlight your choice, then `Enter` to confirm.
-
-After confirming, Claude's status should return to `running`, then eventually `stopped`.
-
----
-
-## Step 6 — Wait for completion
-
-When status is `running`, poll periodically:
-
-```bash
-./bin/client info <session_id>
-```
-
-Do not send more input while Claude is running. Wait until status becomes `stopped` before proceeding.
-
----
-
-## Step 7 — Clean up with `delete`
-
-When the task is fully complete, delete the session to free resources:
-
-```bash
-./bin/client delete <session_id>
+# Good: ask for a specific artifact
+./bin/client input "$SESSION" "List every TODO in the codebase as JSON: [{\"file\": ..., \"line\": ..., \"text\": ...}]"
+./bin/client input "$SESSION" "Enter"
 ```
 
 ---
 
-## Full workflow example
+## Step 3 — Wait for the sub-agent
+
+Poll until it stops:
 
 ```bash
-SKILL_DIR="$(dirname "$0")"   # or hardcode the path to the skill folder
-CLIENT="$SKILL_DIR/bin/client"
-SERVER="$SKILL_DIR/bin/server"
-
-# 0. Ensure server is running
-if ! $CLIENT list >/dev/null 2>&1; then
-  echo "Server not running, starting..."
-  $SERVER &
-  sleep 1
-fi
-
-# 1. Create session
-SESSION=$($CLIENT create /my/project | grep "Session created:" | awk '{print $3}')
-echo "session: $SESSION"
-sleep 1
-
-# 2. Send a prompt
-$CLIENT input "$SESSION" "Summarize the README file"
-sleep 1
-$CLIENT input "$SESSION" "Enter"
-sleep 1
-
-# 3. Wait until done (poll every 2s)
 while true; do
-  STATUS=$($CLIENT info "$SESSION" | grep "^Status:" | awk '{print $2}')
-  sleep 1
+  STATUS=$(./bin/client status "$SESSION" | awk '{print $NF}')
   case "$STATUS" in
-    stopped) break ;;
-    running) sleep 2 ;;
+    stopped)        break ;;
+    running)        sleep 3 ;;
     need_permission)
-      $CLIENT get "$SESSION" ".1"   # see what it wants
-      sleep 1
-      $CLIENT input "$SESSION" "Enter"  # approve default selection
-      sleep 1
-      ;;
+      ./bin/client get "$SESSION" ".1"        # see what it's asking
+      ./bin/client input "$SESSION" "Enter"   # approve default
+      sleep 1 ;;
   esac
 done
+```
 
-# 4. Read the result
-$CLIENT get "$SESSION" 50
+---
+
+## Step 4 — Read the output and decide
+
+This is the most important step. **Read carefully, then reason.**
+
+```bash
+RESULT=$(./bin/client get "$SESSION" ">1")
+echo "$RESULT"
+```
+
+**`get` limit formats:**
+
+| Limit | Returns |
+|---|---|
+| (none) | Full terminal output |
+| `100` | Last 100 lines |
+| `>1` | Last complete user turn (your prompt + sub-agent's full response) |
+| `>2` | Last 2 user turns — useful to see recent context |
+| `.1` | Last output block — useful during `need_permission` |
+
+After reading, ask yourself:
+
+- **Did the sub-agent succeed?** → Send the next task, or clean up and report results.
+- **Did it fail or get stuck?** → Send a corrective follow-up, or spawn a fresh agent on a different approach.
+- **Is the result incomplete?** → Ask it to continue or clarify.
+- **Did it surface new information?** → Adjust your overall plan. Spawn additional agents if needed.
+- **Is there an unexpected situation?** → Escalate to the user with `ask`.
+
+You do not need to follow a fixed plan. If the sub-agent's output changes what makes sense to do, change course.
+
+---
+
+## Step 5 — Act on your decision
+
+### Continue with the same sub-agent
+
+The sub-agent remembers all prior context. Use it for follow-up tasks in the same project:
+
+```bash
+./bin/client input "$SESSION" "The test at line 42 is failing — fix it"
+./bin/client input "$SESSION" "Enter"
+# ... wait and read again ...
+```
+
+### Spawn a new sub-agent for a different concern
+
+```bash
+SESSION_B=$(./bin/client create /other/project | grep "Session created:" | awk '{print $3}')
+sleep 1
+./bin/client input "$SESSION_B" "..."
+./bin/client input "$SESSION_B" "Enter"
+```
+
+### Ask the user for guidance
+
+If you read something unexpected and cannot decide alone, stop and ask. Don't guess.
+
+---
+
+## Step 6 — Iterate
+
+Repeat steps 3–5 as many times as needed. A single task might require many read-decide-act cycles before it's complete.
+
+---
+
+## Step 7 — Clean up
+
+```bash
+./bin/client delete "$SESSION"
+```
+
+---
+
+## Example: adaptive orchestration
+
+This example shows the decision loop in action. The orchestrator reads the sub-agent's result and branches based on content.
+
+```bash
+CLIENT="./bin/client"
+
+# Spawn sub-agent
+SESSION=$($CLIENT create /my/project | grep "Session created:" | awk '{print $3}')
 sleep 1
 
-# 5. Clean up
-$CLIENT delete "$SESSION"
+# --- Round 1: investigate ---
+$CLIENT input "$SESSION" "Run the test suite and report: PASS or FAIL on the first line, then list any failures."
+$CLIENT input "$SESSION" "Enter"
+
+while true; do
+  STATUS=$($CLIENT status "$SESSION" | awk '{print $NF}')
+  [ "$STATUS" = "stopped" ] && break
+  [ "$STATUS" = "need_permission" ] && $CLIENT input "$SESSION" "Enter" && sleep 1 && continue
+  sleep 3
+done
+
+RESULT=$($CLIENT get "$SESSION" ">1")
+
+# --- Decision: what did we learn? ---
+if echo "$RESULT" | grep -q "^PASS"; then
+  echo "All tests pass. Proceeding to deploy."
+  $CLIENT delete "$SESSION"
+  # ... trigger deploy ...
+
+elif echo "$RESULT" | grep -q "^FAIL"; then
+  echo "Tests failing. Asking sub-agent to fix."
+
+  # --- Round 2: fix based on what we read ---
+  $CLIENT input "$SESSION" "Fix the failing tests you listed. Do not change any test expectations."
+  $CLIENT input "$SESSION" "Enter"
+
+  while true; do
+    STATUS=$($CLIENT status "$SESSION" | awk '{print $NF}')
+    [ "$STATUS" = "stopped" ] && break
+    [ "$STATUS" = "need_permission" ] && $CLIENT input "$SESSION" "Enter" && sleep 1 && continue
+    sleep 3
+  done
+
+  RESULT2=$($CLIENT get "$SESSION" ">1")
+
+  # --- Decision: did the fix work? ---
+  if echo "$RESULT2" | grep -q "^PASS"; then
+    echo "Fixed. All tests now pass."
+  else
+    echo "Could not fix automatically. Escalating to user."
+    echo "$RESULT2"
+    # Stop here and let the user decide
+  fi
+
+  $CLIENT delete "$SESSION"
+
+else
+  echo "Unexpected output — could not parse. Showing full result:"
+  echo "$RESULT"
+  $CLIENT delete "$SESSION"
+fi
+```
+
+---
+
+## Parallel sub-agents with independent decisions
+
+```bash
+# Spawn agents for independent tasks
+SESSION_A=$($CLIENT create /project | grep "Session created:" | awk '{print $3}')
+SESSION_B=$($CLIENT create /project | grep "Session created:" | awk '{print $3}')
+sleep 1
+
+$CLIENT input "$SESSION_A" "Audit security vulnerabilities. Output JSON: [{\"severity\": ..., \"location\": ..., \"description\": ...}]"
+$CLIENT input "$SESSION_A" "Enter"
+$CLIENT input "$SESSION_B" "Profile performance bottlenecks. Output JSON: [{\"hotspot\": ..., \"impact\": ...}]"
+$CLIENT input "$SESSION_B" "Enter"
+
+# Wait for both
+for SID in "$SESSION_A" "$SESSION_B"; do
+  while true; do
+    STATUS=$($CLIENT status "$SID" | awk '{print $NF}')
+    [ "$STATUS" = "stopped" ] && break
+    [ "$STATUS" = "need_permission" ] && $CLIENT input "$SID" "Enter" && sleep 1 && continue
+    sleep 3
+  done
+done
+
+# Read both results and decide priority
+SECURITY=$($CLIENT get "$SESSION_A" ">1")
+PERF=$($CLIENT get "$SESSION_B" ">1")
+
+# You now reason: are there critical security issues? How severe are perf problems?
+# Spawn further agents or report to user based on what you read.
+
+$CLIENT delete "$SESSION_A"
+$CLIENT delete "$SESSION_B"
 ```
 
 ---
@@ -214,9 +284,12 @@ $CLIENT delete "$SESSION"
 
 | Command | Usage | Purpose |
 |---|---|---|
-| `list` | `./bin/client list` | See all sessions and their statuses |
-| `create` | `./bin/client create [cwd]` | Start a new Claude session |
-| `info` | `./bin/client info <id>` | Check status and metadata |
-| `get` | `./bin/client get <id> [limit]` | Read terminal output |
-| `input` | `./bin/client input <id> <text>` | Send a keystroke or text |
-| `delete` | `./bin/client delete <id>` | Remove session when finished |
+| `list` | `./bin/client list` | List all active sub-agent sessions |
+| `create` | `./bin/client create [cwd]` | Spawn a new sub-agent |
+| `status` | `./bin/client status <id>` | Poll state: `running` / `stopped` / `need_permission` |
+| `get` | `./bin/client get <id> [limit]` | **Read output to inform your decision** (`>N` turns, `.N` blocks, line count) |
+| `input` | `./bin/client input <id> <text>` | Send prompt text or keystroke (`Enter`, `Up`, `Down`) |
+| `info` | `./bin/client info <id>` | Full metadata (CWD, timestamps, Claude session ID) |
+| `log` | `./bin/client log <id> [limit]` | Structured conversation history (User / Claude / Tool) |
+| `delete` | `./bin/client delete <id>` | Terminate and clean up a sub-agent |
+| `connect` | `./bin/client connect <id>` | Interactive terminal access (Ctrl+Q to exit) |
