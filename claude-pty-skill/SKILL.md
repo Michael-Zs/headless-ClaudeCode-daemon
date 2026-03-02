@@ -170,11 +170,21 @@ Repeat steps 3–5 as many times as needed. A single task might require many rea
 
 ---
 
-## Step 7 — Clean up
+## Step 7 — Clean up (only when truly done)
+
+Delete a session only when you are certain no further instructions will be sent to it.
 
 ```bash
 ./bin/client delete "$SESSION"
 ```
+
+**Do not delete eagerly.** A sub-agent that has finished one task is still available for follow-up prompts — and it retains full conversation context. Deleting it means losing that context permanently.
+
+Only delete when:
+- The overall goal is fully complete, **and**
+- You have confirmed there are no pending follow-up instructions
+
+When in doubt, leave the session alive.
 
 ---
 
@@ -203,10 +213,10 @@ done
 RESULT=$($CLIENT get "$SESSION" ">1")
 
 # --- Decision: what did we learn? ---
+# Do NOT delete the session yet — further instructions may follow.
 if echo "$RESULT" | grep -q "^PASS"; then
-  echo "All tests pass. Proceeding to deploy."
-  $CLIENT delete "$SESSION"
-  # ... trigger deploy ...
+  echo "All tests pass."
+  # Session stays alive. Report to user and wait for next instruction.
 
 elif echo "$RESULT" | grep -q "^FAIL"; then
   echo "Tests failing. Asking sub-agent to fix."
@@ -227,19 +237,21 @@ elif echo "$RESULT" | grep -q "^FAIL"; then
   # --- Decision: did the fix work? ---
   if echo "$RESULT2" | grep -q "^PASS"; then
     echo "Fixed. All tests now pass."
+    # Session stays alive — user may want to do more.
   else
     echo "Could not fix automatically. Escalating to user."
     echo "$RESULT2"
-    # Stop here and let the user decide
+    # Stop here and let the user decide. Do NOT delete.
   fi
-
-  $CLIENT delete "$SESSION"
 
 else
   echo "Unexpected output — could not parse. Showing full result:"
   echo "$RESULT"
-  $CLIENT delete "$SESSION"
+  # Session stays alive so the user can investigate or give new instructions.
 fi
+
+# Only delete when the user confirms the entire workflow is complete:
+# $CLIENT delete "$SESSION"
 ```
 
 ---
@@ -273,9 +285,11 @@ PERF=$($CLIENT get "$SESSION_B" ">1")
 
 # You now reason: are there critical security issues? How severe are perf problems?
 # Spawn further agents or report to user based on what you read.
+# Keep sessions alive — the user may want to ask follow-up questions.
 
-$CLIENT delete "$SESSION_A"
-$CLIENT delete "$SESSION_B"
+# Only delete when the overall workflow is confirmed done:
+# $CLIENT delete "$SESSION_A"
+# $CLIENT delete "$SESSION_B"
 ```
 
 ---
