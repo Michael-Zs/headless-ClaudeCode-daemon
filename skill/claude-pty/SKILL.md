@@ -27,14 +27,16 @@ This skill lets you (the orchestrator) spawn Claude Code sub-agents, read their 
 │         ▼                                   │
 │   YOU decide what to do next  ◄─────────┐  │
 │         │                               │  │
-│    ┌────┴─────────────────────┐         │  │
-│    │                         │         │  │
-│    ▼                         ▼         │  │
-│  done?              send follow-up ────┘  │
-│  clean up           spawn more agents      │
-│                     escalate to user       │
+│    ┌────┴──────────────────────┐        │  │
+│    │                           │        │  │
+│    ▼                           ▼        │  │
+│  report to user      send follow-up ───┘  │
+│  wait for next       spawn more agents     │
+│  instruction         escalate to user      │
 └─────────────────────────────────────────────┘
 ```
+
+**Sessions are never deleted by you.** Only delete a session when the user explicitly asks for it.
 
 The intelligence lives in **you reading the output and deciding**. The commands are just the mechanism.
 
@@ -127,11 +129,11 @@ echo "$RESULT"
 
 After reading, ask yourself:
 
-- **Did the sub-agent succeed?** → Send the next task, or clean up and report results.
+- **Did the sub-agent succeed?** → Report results to the user and wait for their next instruction.
 - **Did it fail or get stuck?** → Send a corrective follow-up, or spawn a fresh agent on a different approach.
 - **Is the result incomplete?** → Ask it to continue or clarify.
 - **Did it surface new information?** → Adjust your overall plan. Spawn additional agents if needed.
-- **Is there an unexpected situation?** → Escalate to the user with `ask`.
+- **Is there an unexpected situation?** → Escalate to the user. Don't guess.
 
 You do not need to follow a fixed plan. If the sub-agent's output changes what makes sense to do, change course.
 
@@ -158,9 +160,9 @@ sleep 1
 ./bin/client input "$SESSION_B" "Enter"
 ```
 
-### Ask the user for guidance
+### Report and wait
 
-If you read something unexpected and cannot decide alone, stop and ask. Don't guess.
+When the task is done, report the result to the user and stop. **Do not delete the session.** The user may want to ask a follow-up, request changes, or continue from where the sub-agent left off.
 
 ---
 
@@ -170,27 +172,7 @@ Repeat steps 3–5 as many times as needed. A single task might require many rea
 
 ---
 
-## Step 7 — Clean up (only when truly done)
-
-Delete a session only when you are certain no further instructions will be sent to it.
-
-```bash
-./bin/client delete "$SESSION"
-```
-
-**Do not delete eagerly.** A sub-agent that has finished one task is still available for follow-up prompts — and it retains full conversation context. Deleting it means losing that context permanently.
-
-Only delete when:
-- The overall goal is fully complete, **and**
-- You have confirmed there are no pending follow-up instructions
-
-When in doubt, leave the session alive.
-
----
-
 ## Example: adaptive orchestration
-
-This example shows the decision loop in action. The orchestrator reads the sub-agent's result and branches based on content.
 
 ```bash
 CLIENT="./bin/client"
@@ -213,10 +195,9 @@ done
 RESULT=$($CLIENT get "$SESSION" ">1")
 
 # --- Decision: what did we learn? ---
-# Do NOT delete the session yet — further instructions may follow.
 if echo "$RESULT" | grep -q "^PASS"; then
   echo "All tests pass."
-  # Session stays alive. Report to user and wait for next instruction.
+  # Report to user. Session stays alive for follow-up.
 
 elif echo "$RESULT" | grep -q "^FAIL"; then
   echo "Tests failing. Asking sub-agent to fix."
@@ -234,24 +215,20 @@ elif echo "$RESULT" | grep -q "^FAIL"; then
 
   RESULT2=$($CLIENT get "$SESSION" ">1")
 
-  # --- Decision: did the fix work? ---
   if echo "$RESULT2" | grep -q "^PASS"; then
     echo "Fixed. All tests now pass."
-    # Session stays alive — user may want to do more.
+    # Report to user. Session stays alive for follow-up.
   else
     echo "Could not fix automatically. Escalating to user."
     echo "$RESULT2"
-    # Stop here and let the user decide. Do NOT delete.
+    # Stop and let the user decide what to do next.
   fi
 
 else
-  echo "Unexpected output — could not parse. Showing full result:"
+  echo "Unexpected output — could not parse. Full result:"
   echo "$RESULT"
-  # Session stays alive so the user can investigate or give new instructions.
+  # Report to user. Session stays alive for investigation.
 fi
-
-# Only delete when the user confirms the entire workflow is complete:
-# $CLIENT delete "$SESSION"
 ```
 
 ---
@@ -279,17 +256,11 @@ for SID in "$SESSION_A" "$SESSION_B"; do
   done
 done
 
-# Read both results and decide priority
+# Read both results and reason about priority
 SECURITY=$($CLIENT get "$SESSION_A" ">1")
 PERF=$($CLIENT get "$SESSION_B" ">1")
 
-# You now reason: are there critical security issues? How severe are perf problems?
-# Spawn further agents or report to user based on what you read.
-# Keep sessions alive — the user may want to ask follow-up questions.
-
-# Only delete when the overall workflow is confirmed done:
-# $CLIENT delete "$SESSION_A"
-# $CLIENT delete "$SESSION_B"
+# Report findings to the user. Both sessions stay alive for follow-up questions.
 ```
 
 ---
@@ -305,5 +276,5 @@ PERF=$($CLIENT get "$SESSION_B" ">1")
 | `input` | `./bin/client input <id> <text>` | Send prompt text or keystroke (`Enter`, `Up`, `Down`) |
 | `info` | `./bin/client info <id>` | Full metadata (CWD, timestamps, Claude session ID) |
 | `log` | `./bin/client log <id> [limit]` | Structured conversation history (User / Claude / Tool) |
-| `delete` | `./bin/client delete <id>` | Terminate and clean up a sub-agent |
+| `delete` | `./bin/client delete <id>` | **Only when the user explicitly asks** |
 | `connect` | `./bin/client connect <id>` | Interactive terminal access (Ctrl+Q to exit) |
