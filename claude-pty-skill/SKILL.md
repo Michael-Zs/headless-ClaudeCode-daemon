@@ -49,7 +49,7 @@ The intelligence lives in **you reading the output and deciding**. The commands 
 If that fails with a socket error, start the server:
 
 ```bash
-./bin/server &
+nohup ./bin/server > /tmp/claude-pty-server.log 2>&1 &
 sleep 1
 ```
 
