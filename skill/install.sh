@@ -29,8 +29,7 @@ install_skill() {
     fi
 
     if [ -e "$dst" ]; then
-        echo "  [$label] 警告: $dst 已存在，备份为 ${dst}.bak"
-        mv "$dst" "${dst}.bak"
+        rm -rf "$dst"
     fi
 
     # 复制 skill 目录（-L 展开 symlink，得到独立副本，含 bin/ 内的二进制文件）
