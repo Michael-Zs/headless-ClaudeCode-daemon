@@ -131,11 +131,12 @@ func (sm *SessionManager) CreateSession(sessionID, cwd string) (*Session, error)
 	// 构建启动命令
 	// 使用 -e 设置环境变量 CLAUDE_PTY_SESSION_ID 传给 hook
 
+	// 通过 env -u CLAUDECODE 取消嵌套检测，避免 Claude 拒绝在 Claude 会话内启动
 	var tmuxArgs []string
 	if settingsPath != "" {
-		tmuxArgs = []string{"new-session", "-d", "-s", tmuxSessionName, "-x", "80", "-y", "40", "-c", cwd, "-e", "CLAUDE_PTY_SESSION_ID=" + sessionID, "--", claudePath, "--settings", settingsPath}
+		tmuxArgs = []string{"new-session", "-d", "-s", tmuxSessionName, "-x", "80", "-y", "40", "-c", cwd, "-e", "CLAUDE_PTY_SESSION_ID=" + sessionID, "--", "env", "-u", "CLAUDECODE", claudePath, "--settings", settingsPath}
 	} else {
-		tmuxArgs = []string{"new-session", "-d", "-s", tmuxSessionName, "-x", "80", "-y", "40", "-c", cwd, "-e", "CLAUDE_PTY_SESSION_ID=" + sessionID, "--", claudePath}
+		tmuxArgs = []string{"new-session", "-d", "-s", tmuxSessionName, "-x", "80", "-y", "40", "-c", cwd, "-e", "CLAUDE_PTY_SESSION_ID=" + sessionID, "--", "env", "-u", "CLAUDECODE", claudePath}
 	}
 
 	// 使用 tmux new-session 创建会话
