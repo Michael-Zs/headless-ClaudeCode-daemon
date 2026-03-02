@@ -209,6 +209,11 @@ func (s *Server) handleInput(req Request) Response {
 		return Response{Success: false, Error: "text required"}
 	}
 
+	// 如果当前状态为 need_permission 且输入为 Enter，则将状态改为 running
+	if status, err := s.sessionMgr.GetStatus(req.SessionID); err == nil && status == "need_permission" && req.Text == "Enter" {
+		s.sessionMgr.SetStatus(req.SessionID, "running")
+	}
+
 	_, err := s.sessionMgr.WriteToSession(req.SessionID, req.Text)
 	if err != nil {
 		return Response{Success: false, Error: err.Error()}
