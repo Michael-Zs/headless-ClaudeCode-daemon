@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/zsm/Prj/claude-server/claude-pty/cmd/hook/set-status need_permission"
+            "command": "~/.claude/skills/claude-pty/bin/set-status need_permission"
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/zsm/Prj/claude-server/claude-pty/cmd/hook/set-status stopped"
+            "command": "~/.claude/skills/claude-pty/bin/set-status stopped"
           }
         ]
       }
@@ -25,7 +25,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/zsm/Prj/claude-server/claude-pty/cmd/hook/set-status running"
+            "command": "~/.claude/skills/claude-pty/bin/set-status running"
           }
         ]
       }
