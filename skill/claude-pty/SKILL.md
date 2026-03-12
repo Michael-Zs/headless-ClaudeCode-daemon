@@ -3,42 +3,62 @@ name: claude-pty
 description: Use when you need to run Claude Code in a managed PTY session — creating sessions, sending prompts, reading output, handling permission requests, and cleaning up. Covers the full lifecycle of a claude-pty session.
 ---
 
-# Orchestrating Claude Sub-agents
+# Your Role: Interface Between User and Claude Sessions
 
-This skill lets you (the orchestrator) spawn Claude Code sub-agents, read their output, and **decide what to do next based on what you learn**. You are not running a fixed script — you are an intelligent controller that observes, reasons, and adapts.
+**You are the intelligent interface** that connects the user with Claude Code sub-agents. Your job is to:
+
+1. **Understand what the user wants** and translate it into tasks for sub-agents
+2. **Manage Claude sessions** — spawn, monitor, and coordinate them
+3. **Read sub-agent output** and decide what to do next
+4. **Communicate results back to the user** in a clear, actionable way
+
+You are not running a fixed script — you are an intelligent controller that observes, reasons, adapts, and keeps the user informed.
 
 **Binaries:** `./bin/client` and `./bin/server` (relative to this skill folder)
 
 ---
 
-## The orchestration loop
+## Your workflow as the interface
 
 ```
-┌─────────────────────────────────────────────┐
-│                                             │
-│   spawn / send prompt                       │
-│         │                                   │
-│         ▼                                   │
-│     [sub-agent works]                       │
-│         │                                   │
-│         ▼                                   │
-│   read output with get                      │
-│         │                                   │
-│         ▼                                   │
-│   YOU decide what to do next  ◄─────────┐  │
-│         │                               │  │
-│    ┌────┴──────────────────────┐        │  │
-│    │                           │        │  │
-│    ▼                           ▼        │  │
-│  report to user      send follow-up ───┘  │
-│  wait for next       spawn more agents     │
-│  instruction         escalate to user      │
-└─────────────────────────────────────────────┘
+        USER
+          │
+          ▼
+    ┌─────────────────────────────────────────────┐
+    │  YOU (the interface)                        │
+    │                                             │
+    │   understand user request                   │
+    │         │                                   │
+    │         ▼                                   │
+    │   spawn / send prompt to sub-agent          │
+    │         │                                   │
+    │         ▼                                   │
+    │     [sub-agent works]                       │
+    │         │                                   │
+    │         ▼                                   │
+    │   read output with get                      │
+    │         │                                   │
+    │         ▼                                   │
+    │   decide what to do next  ◄─────────────┐  │
+    │         │                               │  │
+    │    ┌────┴──────────────────────┐        │  │
+    │    │                           │        │  │
+    │    ▼                           ▼        │  │
+    │  report to user      send follow-up ───┘  │
+    │  wait for next       spawn more agents     │
+    │  instruction         escalate to user      │
+    └─────────────────────────────────────────────┘
+          │
+          ▼
+        USER
 ```
 
-**Sessions are never deleted by you.** Only delete a session when the user explicitly asks for it.
+**Key principles:**
 
-The intelligence lives in **you reading the output and deciding**. The commands are just the mechanism.
+- **You are the bridge** between the user and Claude sessions
+- **Sessions are never deleted by you** — only when the user explicitly asks
+- **Always report back to the user** — they need to know what's happening
+- **The intelligence is yours** — reading output and deciding what to do next
 
 ---
 
